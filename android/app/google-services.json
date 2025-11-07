@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "1050873892829",
+    "firebase_url": "https://vaidik-talk-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "vaidik-talk",
+    "storage_bucket": "vaidik-talk.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050873892829:android:5e672fe5c21e599bf73034",
+        "android_client_info": {
+          "package_name": "com.vaidikastrologers"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAC72h8BkWbRmR4Ix_PvXt6dFTqXesrAQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050873892829:android:1572843f5006d734f73034",
+        "android_client_info": {
+          "package_name": "com.vaidiktalk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAC72h8BkWbRmR4Ix_PvXt6dFTqXesrAQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,148 +1,182 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
+
+const { width } = Dimensions.get('window');
+
 const OTPStyles = StyleSheet.create({
-  Cantainer: {
+  container: {
     flex: 1,
-     backgroundColor: '#372643',
+    backgroundColor: '#1a1a2e',
   },
-  backIcon: {
-    width: 20,
-    height: 20,
-    marginLeft: 20,
-    tintColor: 'white',
-    marginVertical: 12,
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
   },
-  lineCantainer: {
+  
+  // Header Styles
+  headerContainer: {
     flexDirection: 'row',
-  },
-  orText: {
-    marginVertical: 10,
-    fontSize: 18,
-    color: '#f5eeeeff',
-  },
-  VerfiyText: {
-    fontSize: 23,
-    fontWeight: '400',
-    color: 'white',
-    marginLeft: 80,
-  },
-  headContiner: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignContent: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  lineStyle: {
-    marginTop: 10,
-    height: 2,
-    width: '100%',
-    backgroundColor: '#ccc',
-    marginRight: 12,
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
   },
-  setnMessaheStore: {
-    marginTop: 99,
-    marginLeft: 10,
-  },
-  sentMessageSyle: {
-    fontSize: 24,
-    fontWeight: '400',
-    color: 'white',
-    textAlign: 'center',
-    marginHorizontal: 10,
-  },
-  highlightNumber: {
-    color: '#FFD700',
-    fontWeight: 'bold',
-  },
-  title: {
-    fontSize: 24,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '600',
-    marginBottom: 30,
+    color: '#ffffff',
   },
-  otpContainer: {
+  
+  divider: {
+    height: 1,
+    backgroundColor: '#ffffff20',
+    marginHorizontal: 16,
+  },
+
+  // Content Styles
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 40,
+    justifyContent: 'flex-start',
+  },
+  messageText: {
+    fontSize: 18,
+    fontWeight: '400',
+    color: '#e0e0e0',
+    textAlign: 'center',
+    marginBottom: 40,
+    lineHeight: 24,
+  },
+  phoneNumberHighlight: {
+    color: '#FFD700',
+    fontWeight: '700',
+  },
+
+  // OTP Input Styles
+  otpInputContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    // alignItems: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
+    gap: 12,
   },
-  boxInput: {
-    marginTop: 35,
+  otpBox: {
     width: 50,
-    height: 50,
+    height: 60,
     borderWidth: 2,
-    borderColor: 'white',
-    borderRadius: 10,
-    marginHorizontal: 8,
+    borderColor: '#ffffff40',
+    borderRadius: 12,
     fontSize: 24,
+    fontWeight: '700',
     textAlign: 'center',
-    color: '#000',
-    backgroundColor: '#fff8d6',
+    color: '#ffffff',
+    backgroundColor: '#ffffff08',
   },
+  otpBoxFocused: {
+    borderColor: '#FFD700',
+    backgroundColor: '#FFD70015',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  otpBoxFilled: {
+    borderColor: '#FFD700',
+    backgroundColor: '#FFD70020',
+  },
+
+  // Button Styles
   verifyButton: {
     backgroundColor: '#FFD700',
-    paddingVertical: 12,
-    maginVertical: 15,
-    borderRadius: 15,
-    width: '92%',
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 40,
-    marginLeft: 15,
+    justifyContent: 'center',
+    marginBottom: 20,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  verifyButtonDisabled: {
+    backgroundColor: '#FFD70050',
+    opacity: 0.5,
   },
   verifyButtonText: {
-    color: 'black',
+    color: '#000000',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+
+  // Resend Styles
+  resendContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
   },
   timerText: {
-    marginTop: 40,
-    color: 'white',
-    marginLeft: 85,
+    fontSize: 14,
+    color: '#a0a0a0',
+    fontWeight: '400',
   },
-  resendButton: {
-    paddingVertical: 12,
-    marginVertical: 15,
-    borderRadius: 15,
-    alignItems: 'center',
-    marginTop: 10,
+  timerHighlight: {
+    color: '#FFD700',
+    fontWeight: '700',
   },
   resendText: {
-    marginTop: 20,
-    color: 'white',
-    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#a0a0a0',
+    textAlign: 'center',
   },
-  line1: {
-    marginTop: 23,
-    height: 2,
-    width: '45%',
-    backgroundColor: '#ccc',
-    marginRight: 12,
+  resendLink: {
+    color: '#FFD700',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
-  line2: {
-    marginTop: 23,
-    height: 2,
-    width: '45%',
-    backgroundColor: '#ccc',
-    marginLeft: 10,
+
+  // Divider Styles
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 30,
   },
-  truecallerIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 10,
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ffffff20',
   },
-  truecallerText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#000',
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: '#a0a0a0',
+    fontWeight: '500',
   },
+
+  // Truecaller Button Styles
   truecallerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f1f1',
-    borderRadius: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    width: '90%',
     justifyContent: 'center',
-    marginTop: 15,
-    marginLeft: 18,
+    backgroundColor: '#f1f1f1',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  truecallerButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
   },
 });
 

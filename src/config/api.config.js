@@ -1,7 +1,9 @@
+import env from './env';
+
+const API_BASE_URL = env.API_BASE_URL;
+
 export const API_CONFIG = {
-  BASE_URL: 'http://192.168.1.10:3001/api/v1' ,
-  // BASE_URL: 'http://192.168.1.23:3001/api/v1' ,
-//   BASE_URL: 'https://vaidik-server.onrender.com/api/v1',
+  BASE_URL: API_BASE_URL ,
   TIMEOUT: 30000,
 };
 

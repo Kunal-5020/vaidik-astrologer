@@ -2,6 +2,9 @@
 import io from 'socket.io-client';
 import { storageService } from '../storage/storage.service';
 import { STORAGE_KEYS } from '../../config/constants';
+import env from '../../config/env';
+
+const SOCKET_URL = env.SOCKET_URL;
 
 class StreamSocketService {
   constructor() {
@@ -24,14 +27,14 @@ class StreamSocketService {
 
       console.log('====================================');
       console.log('🔌 Creating socket connection...');
-      console.log('URL: http://192.168.1.10:3001/stream');
+      console.log(`URL: ${SOCKET_URL}/stream`);
       console.log('User ID:', userId);
       console.log('User Name:', userName);
       console.log('Is Host:', isHost);
       console.log('====================================');
 
       return new Promise((resolve, reject) => {
-        this.socket = io('http://192.168.1.10:3001/stream', {
+        this.socket = io(`${SOCKET_URL}/stream`, {
           transports: ['websocket'],
           query: { userId, userName },
           auth: { token: accessToken },

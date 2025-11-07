@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/screens/auth/Login.js (CORRECTED - WITH FCM SETUP)
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,57 +17,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { astrologerAuthService } from '../../services';
 
 const countryRules = {
-  IN: 10,
-  US: 10,
-  CA: 10,
-  AU: 9,
-  GB: 10,
-  AE: 9,
-  SA: 9,
-  PK: 10,
-  BD: 10,
-  LK: 9,
-  NP: 10,
-  CN: 11,
-  JP: 10,
-  KR: 10,
-  SG: 8,
-  MY: 9,
-  ID: 10,
-  TH: 9,
-  PH: 10,
-  VN: 9,
-  NG: 10,
-  EG: 10,
-  TR: 10,
-  RU: 10,
-  BR: 11,
-  MX: 10,
-  CL: 9,
-  CO: 10,
-  PE: 9,
-  NZ: 9,
-  DE: 11,
-  FR: 9,
-  IT: 9,
-  ES: 9,
-  NL: 9,
-  CH: 9,
-  SE: 9,
-  NO: 8,
-  DK: 8,
-  FI: 9,
-  IE: 9,
-  PT: 9,
-  PL: 9,
-  GR: 10,
-  IL: 9,
+  IN: 10, US: 10, CA: 10, AU: 9, GB: 10, AE: 9, SA: 9, PK: 10, BD: 10,
+  LK: 9, NP: 10, CN: 11, JP: 10, KR: 10, SG: 8, MY: 9, ID: 10, TH: 9,
+  PH: 10, VN: 9, NG: 10, EG: 10, TR: 10, RU: 10, BR: 11, MX: 10, CL: 9,
+  CO: 10, PE: 9, NZ: 9, DE: 11, FR: 9, IT: 9, ES: 9, NL: 9, CH: 9, SE: 9,
+  NO: 8, DK: 8, FI: 9, IE: 9, PT: 9, PL: 9, GR: 10, IL: 9,
 };
 
 const Login = ({ navigation }) => {
   const { sendLoginOtp, state } = useAuth();
   const [phone, setPhone] = useState('');
   const [isCheckingPhone, setIsCheckingPhone] = useState(false);
+  const [fcmSetupDone, setFcmSetupDone] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState({
     name: 'India',
     code: 'IN',
@@ -75,6 +37,32 @@ const Login = ({ navigation }) => {
   });
 
   const styles = LoginStyle;
+
+  // ✅ REQUEST FCM PERMISSION WHEN LOGIN SCREEN MOUNTS
+  useEffect(() => {
+    const setupFCMOnMount = async () => {
+      try {
+        console.log('🎫 [Login] Setting up FCM on login screen mount...');
+        
+        // Request permission and get token
+        const token = await astrologerAuthService.setupFCMToken();
+        
+        if (token) {
+          console.log('✅ [Login] FCM token setup successful:', token.substring(0, 20) + '...');
+        } else {
+          console.warn('⚠️  [Login] FCM token is null, continuing with login');
+        }
+        
+        setFcmSetupDone(true);
+      } catch (error) {
+        console.error('❌ [Login] FCM setup error (non-critical):', error.message);
+        // Continue anyway, notifications might not work but app should function
+        setFcmSetupDone(true);
+      }
+    };
+
+    setupFCMOnMount();
+  }, []);
 
   const handleCountrySelect = country => {
     setSelectedCountry(country);
@@ -105,7 +93,7 @@ const Login = ({ navigation }) => {
       setIsCheckingPhone(true);
       console.log('🔍 Checking if phone number has astrologer account...');
 
-      // ✅ STEP 1: Check if phone number has approved astrologer account
+      // ✅ Check if phone number has approved astrologer account
       const checkResponse = await astrologerAuthService.checkPhone({
         phoneNumber: phone,
         countryCode: selectedCountry.dial_code,
@@ -114,7 +102,6 @@ const Login = ({ navigation }) => {
       console.log('✅ Check Phone Response:', checkResponse);
 
       if (!checkResponse.data.canLogin) {
-        // No approved account found
         Alert.alert(
           'Account Not Found',
           checkResponse.data.message + '\n\nWould you like to register as an astrologer?',
@@ -134,7 +121,7 @@ const Login = ({ navigation }) => {
 
       setIsCheckingPhone(false);
 
-      // ✅ STEP 2: Send OTP (only if approved account exists)
+      // ✅ Send OTP
       console.log('🔵 Sending login OTP...');
 
       await sendLoginOtp({
@@ -146,11 +133,11 @@ const Login = ({ navigation }) => {
 
       const fullNumber = `+${selectedCountry.dial_code}${phone}`;
       
-      // Navigate to OTP screen
+      // Navigate to OTP screen (don't pass phone as key, use phoneNumber)
       navigation.navigate('OTP', { 
-        phone: fullNumber,
-        countryCode: selectedCountry.dial_code,
         phoneNumber: phone,
+        countryCode: selectedCountry.dial_code,
+        phone: fullNumber,
       });
     } catch (error) {
       console.error('❌ Login Error:', error);
@@ -180,88 +167,99 @@ const Login = ({ navigation }) => {
     }
   };
 
-  const isLoading = state.isLoading || isCheckingPhone;
+  const isLoading = state.isLoading || isCheckingPhone || !fcmSetupDone;
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/Logo-removebg.png')}
-            style={styles.logo}
-          />
+      {!fcmSetupDone && (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#FF5722" />
+          <Text style={{ marginTop: 10, color: '#666' }}>Setting up notifications...</Text>
         </View>
-        <Text style={styles.vaidik}>Vaidik Talk</Text>
-      </View>
+      )}
 
-      <View style={styles.phoneContainer}>
-        <CountryCodePicker onSelect={handleCountrySelect} />
+      {fcmSetupDone && (
+        <>
+          <View style={styles.card}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../assets/Logo-removebg.png')}
+                style={styles.logo}
+              />
+            </View>
+            <Text style={styles.vaidik}>Vaidik Talk</Text>
+          </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Phone number"
-          placeholderTextColor="#666"
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={text => setPhone(text.replace(/[^0-9]/g, ''))}
-          maxLength={countryRules[selectedCountry.code] || 10}
-          editable={!isLoading}
-        />
-      </View>
+          <View style={styles.phoneContainer}>
+            <CountryCodePicker onSelect={handleCountrySelect} />
 
-      <TouchableOpacity 
-        style={[styles.otpButton, isLoading && { opacity: 0.5 }]} 
-        onPress={handleLogin}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.otpText}>GET OTP</Text>
-        )}
-      </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="Phone number"
+              placeholderTextColor="#666"
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={text => setPhone(text.replace(/[^0-9]/g, ''))}
+              maxLength={countryRules[selectedCountry.code] || 10}
+              editable={!isLoading}
+            />
+          </View>
 
-      <View style={styles.termsWrapper}>
-        <Text style={styles.termsText}>By signing up, you agree to our </Text>
-        <TouchableOpacity onPress={handleTermsPress}>
-          <Text style={styles.link}>Terms of use</Text>
-        </TouchableOpacity>
-        <Text style={styles.termsText}> and </Text>
-        <TouchableOpacity onPress={handlePrivacyPress}>
-          <Text style={styles.link}>Privacy policy</Text>
-        </TouchableOpacity>
-        <Text style={styles.termsText}>.</Text>
-      </View>
+          <TouchableOpacity 
+            style={[styles.otpButton, isLoading && { opacity: 0.5 }]} 
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.otpText}>GET OTP</Text>
+            )}
+          </TouchableOpacity>
 
-      <View style={{ flexDirection: 'row' }}>
-        <View style={styles.line}></View>
-        <Text style={styles.orText}>Or</Text>
-        <View style={styles.line1}></View>
-      </View>
+          <View style={styles.termsWrapper}>
+            <Text style={styles.termsText}>By signing up, you agree to our </Text>
+            <TouchableOpacity onPress={handleTermsPress}>
+              <Text style={styles.link}>Terms of use</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}> and </Text>
+            <TouchableOpacity onPress={handlePrivacyPress}>
+              <Text style={styles.link}>Privacy policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.termsText}>.</Text>
+          </View>
 
-      <TouchableOpacity style={styles.truecallerButton}>
-        <Image
-          source={require('../../assets/phone-call.png')}
-          style={styles.truecallerIcon}
-        />
-        <Text style={styles.truecallerText}>Login With Truecaller</Text>
-      </TouchableOpacity>
+          <View style={{ flexDirection: 'row' }}>
+            <View style={styles.line}></View>
+            <Text style={styles.orText}>Or</Text>
+            <View style={styles.line1}></View>
+          </View>
 
-      <View style={styles.signupWrapper}>
-        <Text style={styles.signupText}>Don't have an account? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('RegisterPhone')}>
-          <Text style={styles.signupLink}>Register as Astrologer</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.truecallerButton}>
+            <Image
+              source={require('../../assets/phone-call.png')}
+              style={styles.truecallerIcon}
+            />
+            <Text style={styles.truecallerText}>Login With Truecaller</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity 
-        onPress={() => navigation.navigate('CheckStatus')}
-        style={{ marginTop: 12 }}
-      >
-        <Text style={[styles.signupText, { textAlign: 'center', color: '#5b2b84' }]}>
-          Already Registered? Check Status
-        </Text>
-      </TouchableOpacity>
+          <View style={styles.signupWrapper}>
+            <Text style={styles.signupText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('RegisterPhone')}>
+              <Text style={styles.signupLink}>Register as Astrologer</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('CheckStatus')}
+            style={{ marginTop: 12 }}
+          >
+            <Text style={[styles.signupText, { textAlign: 'center', color: '#5b2b84' }]}>
+              Already Registered? Check Status
+            </Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Switch,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { livestreamService } from '../../services';
 import Toast from 'react-native-toast-message';
 import { requestCameraAndMicPermissions } from '../../utils/permissions';
@@ -31,14 +31,49 @@ const GoLiveSetupScreen = () => {
   const [allowPrivateCalls, setAllowPrivateCalls] = useState(true);
   
   const [isLoading, setIsLoading] = useState(false);
+  const [permissionsReady, setPermissionsReady] = useState(false);
+
+  // ✅ Request permissions when screen receives focus (Activity is ready)
+  useFocusEffect(
+    React.useCallback(() => {
+      const setupPermissions = async () => {
+        try {
+          console.log('📱 [GoLive] Requesting camera & mic permissions...');
+          
+          const hasPermissions = await requestCameraAndMicPermissions();
+          
+          if (hasPermissions) {
+            console.log('✅ [GoLive] Permissions granted');
+            setPermissionsReady(true);
+          } else {
+            console.warn('⚠️  [GoLive] Permissions denied');
+            Alert.alert(
+              'Permissions Required',
+              'Camera and Microphone permissions are required to go live. Please enable them in settings.'
+            );
+            setPermissionsReady(false);
+          }
+        } catch (error) {
+          console.error('❌ [GoLive] Permission setup error:', error);
+          Alert.alert('Error', 'Failed to setup permissions. Please try again.');
+          setPermissionsReady(false);
+        }
+      };
+
+      setupPermissions();
+    }, [])
+  );
 
   const handleGoLive = async () => {
+    // ✅ Check if permissions were already granted
+    if (!permissionsReady) {
+      Alert.alert(
+        'Permissions Required',
+        'Camera and Microphone permissions were not granted. Please try again.'
+      );
+      return;
+    }
 
-    // Check permissions first
-  const hasPermissions = await requestCameraAndMicPermissions();
-  if (!hasPermissions) {
-    return;
-  }
     // Validation
     if (!title.trim()) {
       Toast.show({
@@ -121,131 +156,153 @@ const GoLiveSetupScreen = () => {
         <View style={{ width: 60 }} />
       </View>
 
-      {/* Stream Details */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Stream Details</Text>
-        
-        <Text style={styles.label}>Title *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="What's your stream about?"
-          value={title}
-          onChangeText={setTitle}
-          maxLength={200}
-        />
-
-        <Text style={styles.label}>Description (Optional)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Add more details..."
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={4}
-          maxLength={1000}
-        />
-
-        <Text style={styles.label}>Stream Type</Text>
-        <View style={styles.typeRow}>
-          <TouchableOpacity
-            style={[styles.typeBtn, streamType === 'free' && styles.typeBtnActive]}
-            onPress={() => setStreamType('free')}
-          >
-            <Text style={[styles.typeText, streamType === 'free' && styles.typeTextActive]}>
-              Free
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeBtn, streamType === 'paid' && styles.typeBtnActive]}
-            onPress={() => setStreamType('paid')}
-          >
-            <Text style={[styles.typeText, streamType === 'paid' && styles.typeTextActive]}>
-              Paid
-            </Text>
-          </TouchableOpacity>
+      {/* Loading Permissions */}
+      {!permissionsReady && (
+        <View style={styles.permissionLoadingContainer}>
+          <ActivityIndicator size="large" color="#EF4444" />
+          <Text style={styles.permissionLoadingText}>Setting up camera & microphone...</Text>
         </View>
+      )}
 
-        {streamType === 'paid' && (
-          <>
-            <Text style={styles.label}>Entry Fee (₹)</Text>
+      {permissionsReady && (
+        <>
+          {/* Stream Details */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Stream Details</Text>
+            
+            <Text style={styles.label}>Title *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g., 50"
-              value={entryFee}
-              onChangeText={setEntryFee}
-              keyboardType="numeric"
+              placeholder="What's your stream about?"
+              value={title}
+              onChangeText={setTitle}
+              maxLength={200}
+              editable={!isLoading}
             />
-          </>
-        )}
-      </View>
 
-      {/* Call Settings */}
-      <View style={styles.section}>
-        <View style={styles.settingRow}>
-          <Text style={styles.sectionTitle}>Enable Calls</Text>
-          <Switch
-            value={isCallEnabled}
-            onValueChange={setIsCallEnabled}
-            trackColor={{ false: '#ccc', true: '#FFB300' }}
-            thumbColor={isCallEnabled ? '#fff' : '#f4f3f4'}
-          />
-        </View>
-
-        {isCallEnabled && (
-          <>
-            <Text style={styles.label}>Voice Call Price (₹/min)</Text>
+            <Text style={styles.label}>Description (Optional)</Text>
             <TextInput
-              style={styles.input}
-              placeholder="e.g., 50"
-              value={voiceCallPrice}
-              onChangeText={setVoiceCallPrice}
-              keyboardType="numeric"
+              style={[styles.input, styles.textArea]}
+              placeholder="Add more details..."
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+              maxLength={1000}
+              editable={!isLoading}
             />
 
-            <Text style={styles.label}>Video Call Price (₹/min)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., 100"
-              value={videoCallPrice}
-              onChangeText={setVideoCallPrice}
-              keyboardType="numeric"
-            />
+            <Text style={styles.label}>Stream Type</Text>
+            <View style={styles.typeRow}>
+              <TouchableOpacity
+                style={[styles.typeBtn, streamType === 'free' && styles.typeBtnActive]}
+                onPress={() => setStreamType('free')}
+                disabled={isLoading}
+              >
+                <Text style={[styles.typeText, streamType === 'free' && styles.typeTextActive]}>
+                  Free
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeBtn, streamType === 'paid' && styles.typeBtnActive]}
+                onPress={() => setStreamType('paid')}
+                disabled={isLoading}
+              >
+                <Text style={[styles.typeText, streamType === 'paid' && styles.typeTextActive]}>
+                  Paid
+                </Text>
+              </TouchableOpacity>
+            </View>
 
+            {streamType === 'paid' && (
+              <>
+                <Text style={styles.label}>Entry Fee (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 50"
+                  value={entryFee}
+                  onChangeText={setEntryFee}
+                  keyboardType="numeric"
+                  editable={!isLoading}
+                />
+              </>
+            )}
+          </View>
+
+          {/* Call Settings */}
+          <View style={styles.section}>
             <View style={styles.settingRow}>
-              <Text style={styles.label}>Allow Public Calls</Text>
+              <Text style={styles.sectionTitle}>Enable Calls</Text>
               <Switch
-                value={allowPublicCalls}
-                onValueChange={setAllowPublicCalls}
+                value={isCallEnabled}
+                onValueChange={setIsCallEnabled}
                 trackColor={{ false: '#ccc', true: '#FFB300' }}
+                thumbColor={isCallEnabled ? '#fff' : '#f4f3f4'}
+                disabled={isLoading}
               />
             </View>
 
-            <View style={styles.settingRow}>
-              <Text style={styles.label}>Allow Private Calls</Text>
-              <Switch
-                value={allowPrivateCalls}
-                onValueChange={setAllowPrivateCalls}
-                trackColor={{ false: '#ccc', true: '#FFB300' }}
-              />
-            </View>
-          </>
-        )}
-      </View>
+            {isCallEnabled && (
+              <>
+                <Text style={styles.label}>Voice Call Price (₹/min)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 50"
+                  value={voiceCallPrice}
+                  onChangeText={setVoiceCallPrice}
+                  keyboardType="numeric"
+                  editable={!isLoading}
+                />
 
-      {/* Go Live Button */}
-      <TouchableOpacity
-        style={[styles.goLiveBtn, isLoading && { opacity: 0.5 }]}
-        onPress={handleGoLive}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.goLiveText}>🔴 Go Live Now</Text>
-        )}
-      </TouchableOpacity>
+                <Text style={styles.label}>Video Call Price (₹/min)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 100"
+                  value={videoCallPrice}
+                  onChangeText={setVideoCallPrice}
+                  keyboardType="numeric"
+                  editable={!isLoading}
+                />
 
-      <View style={{ height: 40 }} />
+                <View style={styles.settingRow}>
+                  <Text style={styles.label}>Allow Public Calls</Text>
+                  <Switch
+                    value={allowPublicCalls}
+                    onValueChange={setAllowPublicCalls}
+                    trackColor={{ false: '#ccc', true: '#FFB300' }}
+                    disabled={isLoading}
+                  />
+                </View>
+
+                <View style={styles.settingRow}>
+                  <Text style={styles.label}>Allow Private Calls</Text>
+                  <Switch
+                    value={allowPrivateCalls}
+                    onValueChange={setAllowPrivateCalls}
+                    trackColor={{ false: '#ccc', true: '#FFB300' }}
+                    disabled={isLoading}
+                  />
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* Go Live Button */}
+          <TouchableOpacity
+            style={[styles.goLiveBtn, isLoading && { opacity: 0.5 }]}
+            onPress={handleGoLive}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.goLiveText}>🔴 Go Live Now</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={{ height: 40 }} />
+        </>
+      )}
     </ScrollView>
   );
 };
@@ -275,6 +332,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
+  },
+  permissionLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  permissionLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
   },
   section: {
     backgroundColor: '#fff',

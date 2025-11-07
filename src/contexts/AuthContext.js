@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.js
 import React, { createContext, useContext, useReducer, useCallback, useMemo, useEffect } from 'react';
 import { astrologerAuthService } from '../services';
 import { storageService } from '../services/storage/storage.service';
@@ -63,21 +64,31 @@ export const AuthProvider = ({ children }) => {
 
   const restoreAuth = useCallback(async () => {
     try {
+      console.log('🔍 [AuthContext] Restoring auth from storage...');
+      
       const [accessToken, user, astrologer] = await Promise.all([
         storageService.getItem(STORAGE_KEYS.ACCESS_TOKEN),
         storageService.getObject(STORAGE_KEYS.USER_DATA),
         storageService.getObject(STORAGE_KEYS.ASTROLOGER_DATA),
       ]);
 
+      console.log('📊 [AuthContext] Restore check:', {
+        hasAccessToken: !!accessToken,
+        hasUser: !!user,
+        hasAstrologer: !!astrologer,
+      });
+
       if (accessToken && user && astrologer) {
         dispatch({ 
           type: 'RESTORE_AUTH', 
           payload: { user, astrologer } 
         });
-        console.log('✅ Auth restored from storage');
+        console.log('✅ [AuthContext] Auth restored successfully');
+      } else {
+        console.log('ℹ️  [AuthContext] No complete auth data found - user needs to login');
       }
     } catch (error) {
-      console.error('❌ Failed to restore auth:', error);
+      console.error('❌ [AuthContext] Failed to restore auth:', error);
     }
   }, []);
 
@@ -89,14 +100,19 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
+      console.log('📱 [AuthContext] Sending login OTP:', {
+        phoneNumber: data.phoneNumber,
+        countryCode: data.countryCode,
+      });
+
       const response = await astrologerAuthService.sendLoginOtp(data);
 
       if (response.success) {
         dispatch({ type: 'SET_PHONE', payload: data });
         dispatch({ type: 'OTP_SENT', payload: true });
         
-        // Save phone for later
         await storageService.setObject(STORAGE_KEYS.PHONE_NUMBER, data);
+        console.log('✅ [AuthContext] OTP sent successfully');
       }
 
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -104,36 +120,69 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       const errorMessage = error.formattedMessage || error.message || 'Failed to send OTP';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      console.error('❌ [AuthContext] Send OTP error:', errorMessage);
       throw error;
     }
   }, []);
 
   /**
-   * Verify OTP and login astrologer
+   * Verify OTP and login astrologer (FIXED - CORRECT RESPONSE STRUCTURE)
    */
   const verifyLoginOtp = useCallback(async (data) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
+      console.log('🔐 [AuthContext] Verifying OTP...');
+
       const response = await astrologerAuthService.verifyLoginOtp(data);
 
+      console.log('📊 [AuthContext] Verify response structure:', {
+        success: response.success,
+        hasData: !!response.data,
+        hasTokens: !!response.data?.tokens,
+        hasUser: !!response.data?.user,
+        hasAstrologer: !!response.data?.astrologer,
+      });
+
       if (response.success && response.data) {
-        const { accessToken, refreshToken } = response.data.tokens;
-        const { user, astrologer } = response.data;
+        // ✅ FIXED: Correct destructuring based on actual response
+        const { tokens, user, astrologer } = response.data;
+        
+        if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
+          throw new Error('Invalid token structure from server');
+        }
 
-        // Save tokens
-        await storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
-        await storageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
-        await storageService.setObject(STORAGE_KEYS.USER_DATA, user);
-        await storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, astrologer);
+        if (!user || !astrologer) {
+          throw new Error('Missing user or astrologer data');
+        }
 
+        const { accessToken, refreshToken } = tokens;
+
+        console.log('💾 [AuthContext] Saving login data to storage...');
+
+        // ✅ Save tokens and user data
+        await Promise.all([
+          storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+          storageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
+          storageService.setObject(STORAGE_KEYS.USER_DATA, user),
+          storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, astrologer),
+        ]);
+
+        console.log('✅ [AuthContext] All data saved successfully');
+
+        // ✅ Update state
         dispatch({ 
           type: 'LOGIN_SUCCESS', 
           payload: { user, astrologer } 
         });
 
-        console.log('✅ Astrologer login successful:', user, astrologer);
+        console.log('✅ [AuthContext] Login successful:', {
+          userId: user?._id,
+          astrologerId: astrologer?._id,
+        });
+      } else {
+        throw new Error('Invalid response structure from server');
       }
 
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -141,6 +190,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       const errorMessage = error.formattedMessage || error.message || 'Invalid OTP';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      console.error('❌ [AuthContext] Verify OTP error:', errorMessage);
       throw error;
     }
   }, []);
@@ -150,18 +201,32 @@ export const AuthProvider = ({ children }) => {
    */
   const logout = useCallback(async () => {
     try {
+      console.log('🚪 [AuthContext] Starting logout...');
+      
       await astrologerAuthService.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      // Clear local storage
+      
+      console.log('💾 [AuthContext] Clearing stored data...');
+      
       await storageService.multiRemove([
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
         STORAGE_KEYS.USER_DATA,
         STORAGE_KEYS.ASTROLOGER_DATA,
+        STORAGE_KEYS.PHONE_NUMBER,
       ]);
       
+      dispatch({ type: 'LOGOUT' });
+      console.log('✅ [AuthContext] Logout complete');
+    } catch (error) {
+      console.error('❌ [AuthContext] Logout error:', error);
+      // Still clear state even if API call fails
+      await storageService.multiRemove([
+        STORAGE_KEYS.ACCESS_TOKEN,
+        STORAGE_KEYS.REFRESH_TOKEN,
+        STORAGE_KEYS.USER_DATA,
+        STORAGE_KEYS.ASTROLOGER_DATA,
+        STORAGE_KEYS.PHONE_NUMBER,
+      ]);
       dispatch({ type: 'LOGOUT' });
     }
   }, []);

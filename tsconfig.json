@@ -1,5 +1,5 @@
 {
   "extends": "@react-native/typescript-config",
-  "include": ["**/*.ts", "**/*.tsx", "App.js", "src/screens/registration/RegistrationFormScreen.jsx", "src/screens/registration/CheckStatusScreen.jsx", "src/screens/registration/OtpVerificationScreen.jsx", "src/screens/registration/PhoneNumberScreen.jsx", "src/contexts/index.js", "src/contexts/RegistrationContext.jsx", "src/contexts/AuthContext.jsx", "src/config/constants.js", "src/config/api.config.js", "src/navigation/RegistrationNavigator.jsx"],
+  "include": ["**/*.ts", "**/*.tsx", "App.js"],
   "exclude": ["**/node_modules", "**/Pods"]
 }

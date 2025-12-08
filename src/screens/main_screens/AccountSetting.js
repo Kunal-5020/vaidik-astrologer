@@ -1,354 +1,366 @@
-import React, { useState } from 'react';
+// src/screens/main_screens/AccountSettingsScreen.js
+
+import React from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   Text,
+  Linking,
+  Alert,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Switch, Button } from 'react-native-paper';
-import DropDownPicker from 'react-native-dropdown-picker';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../contexts/AuthContext';
+
+const { width } = Dimensions.get('window');
 
 export default function AccountSettingsScreen() {
-  const [twoFactor, setTwoFactor] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [vibration, setVibration] = useState(true);
-  const [notifications, setNotifications] = useState({
-    order: true,
-    payment: false,
-    marketing: true,
-    rating: false,
-  });
+  const navigation = useNavigation();
+  const { logout } = useAuth();
 
-  // Language dropdown
-  const [language, setLanguage] = useState('English');
-  const [languageOpen, setLanguageOpen] = useState(false);
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Logout", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              console.error('❌ [AccountSettings] Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
-  // Logout Timer dropdown
-  const [logoutTimer, setLogoutTimer] = useState('Never');
-  const [timerOpen, setTimerOpen] = useState(false);
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "This action cannot be undone. Please contact support to process account deletion.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Contact Support", 
+          onPress: () => navigation.navigate('HelpSupport')
+        }
+      ]
+    );
+  };
+
+  const openLink = (url) => {
+    Linking.openURL(url).catch(err => {
+      console.error("❌ [AccountSettings] Link error:", err);
+      Alert.alert('Error', 'Could not open the link');
+    });
+  };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity>
-          <Icon name="arrow-left" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Account Settings</Text>
-      </View>
-
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView
         style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Account Security */}
-        <Text style={styles.sectionTitle}>Account Security</Text>
-
+        
+        {/* Finance & Earnings */}
+        <Text style={styles.sectionTitle}>Finance</Text>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.row}>
-            <View style={styles.rowLeft}>
-              <View style={styles.iconCircle}>
-                <Icon name="lock-outline" size={22} color="#4A4A4A" />
-              </View>
-              <View>
-                <Text style={styles.rowTitle}>Change Password</Text>
-                <Text style={styles.rowSubtitle}>Update your password</Text>
-              </View>
-            </View>
-            <Icon name="chevron-right" size={24} color="#B0B0B0" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: '#E8F5E9' }]}>
-                <Icon name="shield-check-outline" size={22} color="#2E7D32" />
-              </View>
-              <View>
-                <Text style={styles.rowTitle}>Two-Factor Authentication</Text>
-                <Text style={styles.rowSubtitle}>Extra security layer</Text>
-              </View>
-            </View>
-            <Switch
-              value={twoFactor}
-              onValueChange={setTwoFactor}
-              color="#6200EE"
-            />
-          </View>
-        </View>
-
-        {/* Notification Preferences */}
-        <Text style={styles.sectionTitle}>Notification Preferences</Text>
-        {[
-          {
-            key: 'order',
-            title: 'Order Notifications',
-            subtitle: 'New consultation requests',
-          },
-          {
-            key: 'payment',
-            title: 'Payment Notifications',
-            subtitle: 'Earnings and transactions',
-          },
-          {
-            key: 'marketing',
-            title: 'Marketing Notifications',
-            subtitle: 'Updates and promotions',
-          },
-          {
-            key: 'rating',
-            title: 'Rating & Reviews',
-            subtitle: 'Customer feedback alerts',
-          },
-        ].map(item => (
-          <View key={item.key} style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.rowLeft}>
-                <View style={styles.iconCircle}>
-                  <Icon name="bell-outline" size={22} color="#4A4A4A" />
-                </View>
-                <View>
-                  <Text style={styles.rowTitle}>{item.title}</Text>
-                  <Text style={styles.rowSubtitle}>{item.subtitle}</Text>
-                </View>
-              </View>
-              <Switch
-                value={notifications[item.key]}
-                onValueChange={() =>
-                  setNotifications({
-                    ...notifications,
-                    [item.key]: !notifications[item.key],
-                  })
-                }
-                color="#6200EE"
-              />
-            </View>
-          </View>
-        ))}
-
-        {/* App Preferences */}
-        <Text style={styles.sectionTitle}>App Preferences</Text>
-
-        {/* Language Dropdown */}
-        <View style={styles.card}>
-          <View style={styles.rowLeft}>
-            <View style={styles.iconCircleForLagTimer}>
-              <Icon name="translate" size={22} color="#4A4A4A" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>Language</Text>
-              <DropDownPicker
-                open={languageOpen}
-                value={language}
-                items={[
-                  { label: 'English', value: 'English' },
-                  { label: 'Hindi', value: 'Hindi' },
-                  { label: 'Tamil', value: 'Tamil' },
-                ]}
-                setOpen={setLanguageOpen}
-                setValue={setLanguage}
-                style={styles.dropdown}
-                dropDownContainerStyle={styles.dropdownContainer}
-                listMode="SCROLLVIEW"
-                zIndex={3000}
-                zIndexInverse={1000}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Dark Mode */}
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <View style={styles.iconCircle}>
-                <Icon name="weather-night" size={22} color="#4A4A4A" />
-              </View>
-              <View>
-                <Text style={styles.rowTitle}>Dark Mode</Text>
-                <Text style={styles.rowSubtitle}>Use dark theme</Text>
-              </View>
-            </View>
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              color="#6200EE"
-            />
-          </View>
-        </View>
-
-        {/* Auto-Logout Timer Dropdown */}
-        <View style={styles.card}>
-          <View style={styles.rowLeft}>
-            <View style={styles.iconCircleForLagTimer}>
-              <Icon name="clock-outline" size={22} color="#4A4A4A" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>Auto-Logout Timer</Text>
-              <DropDownPicker
-                open={timerOpen}
-                value={logoutTimer}
-                items={[
-                  { label: '15 minutes', value: '15min' },
-                  { label: '30 minutes', value: '30min' },
-                  { label: '1 hour', value: '1hr' },
-                  { label: 'Never', value: 'Never' },
-                ]}
-                setOpen={setTimerOpen}
-                setValue={setLogoutTimer}
-                style={styles.dropdown}
-                dropDownContainerStyle={styles.dropdownContainer}
-                listMode="SCROLLVIEW"
-                zIndex={2000}
-                zIndexInverse={2000}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Vibration */}
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <View style={styles.iconCircle}>
-                <Icon name="vibrate" size={22} color="#4A4A4A" />
-              </View>
-              <View>
-                <Text style={styles.rowTitle}>Vibration</Text>
-                <Text style={styles.rowSubtitle}>Haptic feedback</Text>
-              </View>
-            </View>
-            <Switch
-              value={vibration}
-              onValueChange={setVibration}
-              color="#6200EE"
-            />
-          </View>
-        </View>
-
-        {/* Privacy */}
-        <Text style={styles.sectionTitle}>Privacy</Text>
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.row}>
-            <View style={styles.rowLeft}>
-              <View style={styles.iconCircle}>
-                <Icon name="shield-outline" size={22} color="#4A4A4A" />
-              </View>
-              <View>
-                <Text style={styles.rowTitle}>Privacy Settings</Text>
-              </View>
-            </View>
-            <Icon name="chevron-right" size={22} color="#B0B0B0" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.row}>
-            <View style={styles.rowLeft}>
-              <View style={styles.iconCircle}>
-                <Icon name="database-outline" size={22} color="#4A4A4A" />
-              </View>
-              <View>
-                <Text style={styles.rowTitle}>Data & Storage</Text>
-              </View>
-            </View>
-            <Icon name="chevron-right" size={22} color="#B0B0B0" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Danger Zone */}
-        <Text style={[styles.sectionTitle, { color: 'red' }]}>Danger Zone</Text>
-        <View style={styles.dangerZone}>
-          <Button
-            mode="outlined"
-            textColor="red"
-            style={styles.dangerButton}
-            onPress={() => console.log('Clear Cache')}
+          
+          <TouchableOpacity 
+            style={styles.row} 
+            onPress={() => navigation.navigate('WalletWithdraw')}
+            activeOpacity={0.7}
           >
-            Clear Cache
-          </Button>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: '#D1FAE5' }]}>
+                <Icon name="bank-transfer" size={20} color="#10B981" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.rowTitle}>Withdraw Funds</Text>
+                <Text style={styles.rowSubtitle}>Manage bank accounts & payouts</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
 
-          <Button
-            mode="contained"
-            buttonColor="red"
-            onPress={() => console.log('Delete Account')}
+          <View style={styles.divider} />
+
+          <TouchableOpacity 
+            style={styles.row}
+            onPress={() => navigation.navigate('PayoutRequests')}
+            activeOpacity={0.7}
           >
-            Delete Account
-          </Button>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Icon name="history" size={20} color="#F59E0B" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.rowTitle}>Payout Requests</Text>
+                <Text style={styles.rowSubtitle}>View past withdrawals</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
+
+        {/* Account & Security */}
+        <Text style={styles.sectionTitle}>Account & Settings</Text>
+        <View style={styles.card}>
+          <TouchableOpacity 
+            style={styles.row} 
+            onPress={() => navigation.navigate('EditProfile')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: '#E8EAF6' }]}>
+                <Icon name="account-edit-outline" size={20} color="#372643" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.rowTitle}>Edit Profile</Text>
+                <Text style={styles.rowSubtitle}>Update name, bio, and details</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity 
+            style={styles.row} 
+            onPress={() => navigation.navigate('PerformanceAnalysis')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Icon name="chart-line" size={20} color="#3B82F6" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.rowTitle}>Performance Analysis</Text>
+                <Text style={styles.rowSubtitle}>Check your growth metrics</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Support & Legal */}
+        <Text style={styles.sectionTitle}>Support & Legal</Text>
+        <View style={styles.card}>
+          
+          <TouchableOpacity 
+            style={styles.row} 
+            onPress={() => navigation.navigate('HelpSupport')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: '#F3E8FF' }]}>
+                <Icon name="lifebuoy" size={20} color="#9333EA" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.rowTitle}>Help & Support</Text>
+                <Text style={styles.rowSubtitle}>FAQs and Customer Care</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity 
+            style={styles.row} 
+            onPress={() => openLink('https://vaidiktalk.com/privacy-policy')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <View style={styles.iconCircle}>
+                <Icon name="shield-lock-outline" size={20} color="#6B7280" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.rowTitle}>Privacy Policy</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity 
+            style={styles.row} 
+            onPress={() => openLink('https://vaidiktalk.com/terms-conditions')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <View style={styles.iconCircle}>
+                <Icon name="file-document-outline" size={20} color="#6B7280" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.rowTitle}>Terms & Conditions</Text>
+              </View>
+            </View>
+            <Icon name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Actions */}
+        <Text style={[styles.sectionTitle, { color: '#EF4444' }]}>Actions</Text>
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+          >
+            <Icon name="logout" size={18} color="#EF4444" />
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.7}
+          >
+            <Icon name="delete-forever" size={18} color="#EF4444" />
+            <Text style={styles.deleteButtonText}>Delete Account</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 24 }} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F6FA',alignContent:'center' },
-  header: {
-    backgroundColor: '#6200EE',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F5F6FA',
   },
-
-  headerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 16,
+  scrollArea: { 
+    flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
     marginTop: 20,
-    marginBottom: 8,
-    paddingHorizontal: 16,
+    marginBottom: 10,
+    paddingHorizontal: Math.min(width * 0.04, 16),
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
+  
   card: {
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    borderRadius: 16,
-    marginVertical: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth:0.5,
-    borderColor:'lightgrey'
+    marginHorizontal: Math.min(width * 0.04, 16),
+    borderRadius: 12,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
+  
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  
+  rowLeft: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 10,
+  },
+  
   iconCircle: {
-    backgroundColor: '#F5F5F5',
-    padding: 8,
-    borderRadius: 30,
+    backgroundColor: '#F3F4F6',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  iconCircleForLagTimer: {
-    backgroundColor: '#F5F5F5',
-    padding: 8,
-    borderRadius: 30,
-    bottom: 25,
+  
+  textContainer: {
+    marginLeft: 12,
+    flex: 1,
   },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#333' },
-  rowSubtitle: { fontSize: 12, color: '#888' },
-  dangerZone: {
-    marginVertical: 20,
-    marginHorizontal: 16,
+  
+  rowTitle: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: '#111827',
+  },
+  
+  rowSubtitle: { 
+    fontSize: 11, 
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginLeft: 64,
+  },
+  
+  actionsContainer: {
+    marginVertical: 8,
+    marginHorizontal: Math.min(width * 0.04, 16),
     gap: 10,
   },
-  dangerButton: { borderColor: 'red' },
-  dropdown: {
-    backgroundColor: '#fff',
-    borderColor: '#ddd',
-    height: 55,
-    marginTop: 6,
+  
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    gap: 8,
   },
-  dropdownContainer: {
-    borderColor: '#ddd',
+  
+  logoutButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: 8,
+  },
+  
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
   },
 });

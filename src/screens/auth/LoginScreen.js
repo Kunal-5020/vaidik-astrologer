@@ -1,4 +1,4 @@
-// src/screens/auth/Login.js (CORRECTED - WITH FCM SETUP)
+// src/screens/auth/Login.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,12 +9,20 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LoginStyle from '../../style/LoginStyle';
 import Toast from 'react-native-toast-message';
 import CountryCodePicker from '../../component/CountaryCodePickar';
 import { useAuth } from '../../contexts/AuthContext';
 import { astrologerAuthService } from '../../services';
+import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
+
+const { width, height } = Dimensions.get('window');
 
 const countryRules = {
   IN: 10, US: 10, CA: 10, AU: 9, GB: 10, AE: 9, SA: 9, PK: 10, BD: 10,
@@ -25,7 +33,7 @@ const countryRules = {
 };
 
 const Login = ({ navigation }) => {
-  const { sendLoginOtp, state } = useAuth();
+  const { sendLoginOtp, loginWithTruecaller, state } = useAuth();
   const [phone, setPhone] = useState('');
   const [isCheckingPhone, setIsCheckingPhone] = useState(false);
   const [fcmSetupDone, setFcmSetupDone] = useState(false);
@@ -36,33 +44,127 @@ const Login = ({ navigation }) => {
     flag: 'https://flagcdn.com/w20/in.png',
   });
 
+  const {
+    initializeTruecallerSDK,
+    openTruecallerForVerification,
+    isSdkUsable,
+    error: truecallerError,
+  } = useTruecaller({
+    androidClientId: '4rxptw6rdoll4cvj6ccb4qobzofhuuznw-ablj5mb_m',
+    androidSuccessHandler: handleTruecallerSuccess,
+    scopes: ['profile', 'phone', 'openid'],
+  });
+
   const styles = LoginStyle;
 
-  // ✅ REQUEST FCM PERMISSION WHEN LOGIN SCREEN MOUNTS
+  // ===== INITIALIZATION =====
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeTruecallerSDK();
+        console.log('✅ Truecaller SDK initialized');
+      } catch (error) {
+        console.log('⚠️ Truecaller init failed:', error.message);
+      }
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (truecallerError) {
+      console.error('❌ Truecaller error:', truecallerError);
+      Alert.alert(
+        'Truecaller Error',
+        'Could not verify with Truecaller. Please use OTP login.'
+      );
+    }
+  }, [truecallerError]);
+
   useEffect(() => {
     const setupFCMOnMount = async () => {
       try {
-        console.log('🎫 [Login] Setting up FCM on login screen mount...');
-        
-        // Request permission and get token
+        console.log('🎫 [Login] Setting up FCM...');
         const token = await astrologerAuthService.setupFCMToken();
         
         if (token) {
-          console.log('✅ [Login] FCM token setup successful:', token.substring(0, 20) + '...');
+          console.log('✅ [Login] FCM token setup successful');
         } else {
-          console.warn('⚠️  [Login] FCM token is null, continuing with login');
+          console.warn('⚠️  [Login] FCM token is null');
         }
         
         setFcmSetupDone(true);
       } catch (error) {
         console.error('❌ [Login] FCM setup error (non-critical):', error.message);
-        // Continue anyway, notifications might not work but app should function
         setFcmSetupDone(true);
       }
     };
 
     setupFCMOnMount();
   }, []);
+
+  // ===== TRUECALLER HANDLER =====
+
+  async function handleTruecallerSuccess(data) {
+    try {
+      console.log('🔄 [Login] Processing Truecaller data...');
+
+      const truecallerData = {
+        authorizationCode: data.authorizationCode,
+        codeVerifier: data.codeVerifier,
+      };
+
+      const authResult = await loginWithTruecaller(truecallerData);
+
+      if (authResult && authResult.success) {
+        if (authResult.data.canLogin === false) {
+          Alert.alert(
+            'Account Not Found',
+            authResult.data.message + '\n\nWould you like to register as an astrologer?',
+            [
+              {
+                text: 'Register',
+                onPress: () => navigation.navigate('RegisterPhone'),
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ]
+          );
+          return;
+        }
+
+        const user = authResult.data?.user;
+        const astrologer = authResult.data?.astrologer;
+        const isNewUser = authResult.data?.isNewUser;
+
+        if (!user || !astrologer) {
+          throw new Error('Invalid response from server');
+        }
+
+        // Navigate based on profile completion
+        if (!astrologer.isProfileComplete || isNewUser) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Details' }],
+          });
+        } else {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        }
+      } else {
+        throw new Error(authResult?.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('❌ [Login] Truecaller login error:', error);
+      Alert.alert(
+        'Login Failed',
+        error.message || 'Could not complete Truecaller login. Please try OTP login.'
+      );
+    }
+  }
+
+  // ===== HANDLERS =====
 
   const handleCountrySelect = country => {
     setSelectedCountry(country);
@@ -84,22 +186,19 @@ const Login = ({ navigation }) => {
       }
       Alert.alert(
         'Invalid Number',
-        `Phone number must be ${expectedLength} digits for ${selectedCountry.name}.`,
+        `Phone number must be ${expectedLength} digits for ${selectedCountry.name}.`
       );
       return;
     }
 
     try {
       setIsCheckingPhone(true);
-      console.log('🔍 Checking if phone number has astrologer account...');
+      console.log('🔍 Checking phone number...');
 
-      // ✅ Check if phone number has approved astrologer account
       const checkResponse = await astrologerAuthService.checkPhone({
         phoneNumber: phone,
         countryCode: selectedCountry.dial_code,
       });
-
-      console.log('✅ Check Phone Response:', checkResponse);
 
       if (!checkResponse.data.canLogin) {
         Alert.alert(
@@ -110,18 +209,12 @@ const Login = ({ navigation }) => {
               text: 'Register',
               onPress: () => navigation.navigate('RegisterPhone'),
             },
-            {
-              text: 'Cancel',
-              style: 'cancel',
-            },
+            { text: 'Cancel', style: 'cancel' },
           ]
         );
         return;
       }
 
-      setIsCheckingPhone(false);
-
-      // ✅ Send OTP
       console.log('🔵 Sending login OTP...');
 
       await sendLoginOtp({
@@ -129,11 +222,8 @@ const Login = ({ navigation }) => {
         countryCode: selectedCountry.dial_code,
       });
 
-      console.log('✅ OTP sent successfully');
-
       const fullNumber = `+${selectedCountry.dial_code}${phone}`;
       
-      // Navigate to OTP screen (don't pass phone as key, use phoneNumber)
       navigation.navigate('OTP', { 
         phoneNumber: phone,
         countryCode: selectedCountry.dial_code,
@@ -141,8 +231,10 @@ const Login = ({ navigation }) => {
       });
     } catch (error) {
       console.error('❌ Login Error:', error);
-      
-      const errorMessage = error.formattedMessage || error.response?.data?.message || 'Failed to proceed. Please try again.';
+      const errorMessage = 
+        error.formattedMessage || 
+        error.response?.data?.message || 
+        'Failed to proceed. Please try again.';
       Alert.alert('Error', errorMessage);
     } finally {
       setIsCheckingPhone(false);
@@ -167,100 +259,162 @@ const Login = ({ navigation }) => {
     }
   };
 
+  const handleTruecallerLogin = async () => {
+    try {
+      const isUsable = await isSdkUsable();
+
+      if (!isUsable) {
+        Alert.alert(
+          'Truecaller Not Available',
+          'Please install Truecaller app or use OTP verification.'
+        );
+        return;
+      }
+
+      console.log('📱 Opening Truecaller verification...');
+      await openTruecallerForVerification();
+    } catch (error) {
+      console.error('❌ Truecaller error:', error);
+      Alert.alert('Error', 'Could not open Truecaller. Please try OTP login.');
+    }
+  };
+
   const isLoading = state.isLoading || isCheckingPhone || !fcmSetupDone;
 
+  // ===== RENDER =====
+
   return (
-    <View style={styles.container}>
-      {!fcmSetupDone && (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#FF5722" />
-          <Text style={{ marginTop: 10, color: '#666' }}>Setting up notifications...</Text>
-        </View>
-      )}
-
-      {fcmSetupDone && (
-        <>
-          <View style={styles.card}>
-            <View style={styles.logoContainer}>
-              <Image
-                source={require('../../assets/Logo-removebg.png')}
-                style={styles.logo}
-              />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, width: '100%' }}
+      >
+        <ScrollView
+          contentContainerStyle={{ 
+            flexGrow: 1,
+            alignItems: 'center',
+            paddingBottom: 30,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ===== LOADING STATE ===== */}
+          {!fcmSetupDone && (
+            <View style={{ 
+              flex: 1, 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              minHeight: height * 0.7 
+            }}>
+              <ActivityIndicator size="large" color="#FFD700" />
+              <Text style={{ marginTop: 15, color: '#fff', fontSize: 14 }}>
+                Setting up notifications...
+              </Text>
             </View>
-            <Text style={styles.vaidik}>Vaidik Talk</Text>
-          </View>
+          )}
 
-          <View style={styles.phoneContainer}>
-            <CountryCodePicker onSelect={handleCountrySelect} />
+          {/* ===== MAIN CONTENT ===== */}
+          {fcmSetupDone && (
+            <>
+              {/* Logo Card */}
+              <View style={styles.card}>
+                <View style={styles.logoContainer}>
+                  <Image
+                    source={require('../../assets/Logo-removebg.png')}
+                    style={styles.logo}
+                  />
+                </View>
+                <Text style={styles.vaidik}>Vaidik Talk</Text>
+              </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Phone number"
-              placeholderTextColor="#666"
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={text => setPhone(text.replace(/[^0-9]/g, ''))}
-              maxLength={countryRules[selectedCountry.code] || 10}
-              editable={!isLoading}
-            />
-          </View>
+              {/* Phone Input */}
+              <View style={styles.phoneContainer}>
+                <CountryCodePicker onSelect={handleCountrySelect} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Phone number"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={text => setPhone(text.replace(/[^0-9]/g, ''))}
+                  maxLength={countryRules[selectedCountry.code] || 10}
+                  editable={!isLoading}
+                />
+              </View>
 
-          <TouchableOpacity 
-            style={[styles.otpButton, isLoading && { opacity: 0.5 }]} 
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.otpText}>GET OTP</Text>
-            )}
-          </TouchableOpacity>
+              {/* Get OTP Button */}
+              <TouchableOpacity 
+                style={[styles.otpButton, isLoading && { opacity: 0.6 }]} 
+                onPress={handleLogin}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={styles.otpText}>GET OTP</Text>
+                )}
+              </TouchableOpacity>
 
-          <View style={styles.termsWrapper}>
-            <Text style={styles.termsText}>By signing up, you agree to our </Text>
-            <TouchableOpacity onPress={handleTermsPress}>
-              <Text style={styles.link}>Terms of use</Text>
-            </TouchableOpacity>
-            <Text style={styles.termsText}> and </Text>
-            <TouchableOpacity onPress={handlePrivacyPress}>
-              <Text style={styles.link}>Privacy policy</Text>
-            </TouchableOpacity>
-            <Text style={styles.termsText}>.</Text>
-          </View>
+              {/* Terms & Conditions */}
+              <View style={styles.termsWrapper}>
+                <Text style={styles.termsText}>By signing up, you agree to our </Text>
+                <TouchableOpacity onPress={handleTermsPress}>
+                  <Text style={styles.link}>Terms of use</Text>
+                </TouchableOpacity>
+                <Text style={styles.termsText}> and </Text>
+                <TouchableOpacity onPress={handlePrivacyPress}>
+                  <Text style={styles.link}>Privacy policy</Text>
+                </TouchableOpacity>
+                <Text style={styles.termsText}>.</Text>
+              </View>
 
-          <View style={{ flexDirection: 'row' }}>
-            <View style={styles.line}></View>
-            <Text style={styles.orText}>Or</Text>
-            <View style={styles.line1}></View>
-          </View>
+              {/* Divider */}
+              <View style={styles.dividerContainer}>
+                <View style={styles.line} />
+                <Text style={styles.orText}>Or</Text>
+                <View style={styles.line} />
+              </View>
 
-          <TouchableOpacity style={styles.truecallerButton}>
-            <Image
-              source={require('../../assets/phone-call.png')}
-              style={styles.truecallerIcon}
-            />
-            <Text style={styles.truecallerText}>Login With Truecaller</Text>
-          </TouchableOpacity>
+              {/* Truecaller Button */}
+              <TouchableOpacity 
+                style={[styles.truecallerButton, isLoading && { opacity: 0.6 }]}
+                onPress={handleTruecallerLogin}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={require('../../assets/phone-call.png')}
+                  style={styles.truecallerIcon}
+                />
+                <Text style={styles.truecallerText}>Login With Truecaller</Text>
+              </TouchableOpacity>
 
-          <View style={styles.signupWrapper}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('RegisterPhone')}>
-              <Text style={styles.signupLink}>Register as Astrologer</Text>
-            </TouchableOpacity>
-          </View>
+              {/* Sign Up Link */}
+              <View style={styles.signupWrapper}>
+                <Text style={styles.signupText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => {
+                  console.log('🔄 Navigating to RegisterPhone...');
+                  navigation.navigate('RegisterPhone');
+                }}>
+                  <Text style={styles.signupLink}>Register as Astrologer</Text>
+                </TouchableOpacity>
+              </View>
 
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('CheckStatus')}
-            style={{ marginTop: 12 }}
-          >
-            <Text style={[styles.signupText, { textAlign: 'center', color: '#5b2b84' }]}>
-              Already Registered? Check Status
-            </Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
+              {/* Check Status Link */}
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('CheckStatus')}
+                style={styles.checkStatusButton}
+              >
+                <Text style={styles.checkStatusText}>
+                  Already Registered? Check Status
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 

@@ -2,7 +2,7 @@ import { apiClient } from './axios.instance';
 
 class UploadService {
   /**
-   * Upload image to server (Mock version - returns static URL)
+   * Upload image to server
    * @param {string} uri - Local file URI from image picker
    * @param {string} type - File type (image/jpeg, image/png)
    * @returns {Promise<{url: string, s3Key: string}>}
@@ -36,9 +36,21 @@ class UploadService {
       console.log('✅ Upload Response:', response.data);
 
       if (response.data.success) {
+        const uploadedUrl = response.data.data.url;
+        
+        // ✅ TEMPORARY: Accept placeholder URLs until backend is ready
+        if (uploadedUrl.includes('ui-avatars.com')) {
+          console.warn('⚠️ Received placeholder image URL (backend not ready)');
+        }
+        
+        // ✅ VALIDATE: URL must exist
+        if (!uploadedUrl) {
+          throw new Error('No URL returned from upload service');
+        }
+
         return {
-          url: response.data.data.url,
-          s3Key: response.data.data.s3Key || response.data.data.key,
+          url: uploadedUrl,
+          s3Key: response.data.data.s3Key || response.data.data.key || null,
         };
       } else {
         throw new Error(response.data.message || 'Upload failed');

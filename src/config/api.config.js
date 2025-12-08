@@ -24,6 +24,7 @@ export const API_ENDPOINTS = {
   ASTROLOGER_REFRESH_TOKEN: '/auth/astrologer/refresh',
   ASTROLOGER_LOGOUT: '/auth/astrologer/logout',
   ASTROLOGER_ME: '/auth/astrologer/me',
+  ASTROLOGER_TRUECALLER_LOGIN: '/auth/astrologer/verify-truecaller',
   
    // ==================== LIVESTREAM ENDPOINTS ====================
   
@@ -50,4 +51,16 @@ export const API_ENDPOINTS = {
   ASTROLOGER_STREAM_ANALYTICS: '/astrologer/streams/:streamId/analytics',
   ASTROLOGER_HOST_ANALYTICS: '/astrologer/streams/analytics/summary',
 
+  // ===== Chat (shared backend) =====
+  CHAT_GET_MESSAGES: '/chat/sessions/:sessionId/messages',
+  CHAT_END_SESSION: '/chat/sessions/end',
+
+  // Astrologer chat actions
+  ASTRO_CHAT_ACCEPT: '/chat/astrologer/accept',
+  ASTRO_CHAT_REJECT: '/chat/astrologer/reject',
+
+  // ===== Call (stub for later) =====
+  ASTRO_CALL_ACCEPT: '/calls/astrologer/accept',
+  ASTRO_CALL_REJECT: '/calls/astrologer/reject',
+  ASTRO_CALL_END: '/calls/sessions/end',
 };

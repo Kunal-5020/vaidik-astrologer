@@ -1,98 +1,97 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest 
-  xmlns:android="http://schemas.android.com/apk/res/android"
-  xmlns:tools="http://schemas.android.com/tools">
+<!-- android/app/src/main/AndroidManifest.xml -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-  <!-- ✅ PERMISSIONS -->
-  <uses-permission android:name="android.permission.INTERNET" />
-  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-  <uses-permission android:name="android.permission.CAMERA" />
-  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-  <uses-permission android:name="android.permission.RECORD_AUDIO" />
-  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-  <uses-permission android:name="android.permission.VIBRATE" />
-  <uses-permission android:name="android.permission.WAKE_LOCK" />
-  <uses-permission android:name="android.permission.BLUETOOTH" />
-  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-  <uses-permission android:name="android.permission.READ_PHONE_STATE" />
-  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-  <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
-  <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <!-- Features -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-  <!-- ✅ FEATURE DECLARATIONS (required=false to support all devices) -->
-  <uses-feature 
-    android:name="android.hardware.camera" 
-    android:required="false" />
-  <uses-feature 
-    android:name="android.hardware.camera.front" 
-    android:required="false" />
+    <!-- ✅ PERMISSIONS -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
-  <application
-    android:name=".MainApplication"
-    android:label="@string/app_name"
-    android:icon="@mipmap/ic_launcher"
-    android:roundIcon="@mipmap/ic_launcher_round"
-    android:allowBackup="false"
-    android:theme="@style/AppTheme"
-    android:usesCleartextTraffic="true"
-    android:supportsRtl="true">
+    <!-- For Android 12+ -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
 
-    <!-- ✅ Firebase Messaging Service -->
-    <service
-      android:name="com.google.firebase.messaging.FirebaseMessagingService"
-      android:exported="false">
-      <intent-filter>
-        <action android:name="com.google.firebase.MESSAGING_EVENT" />
-      </intent-filter>
-    </service>
-
-    <!-- ✅ TrueCaller Configuration -->
-    <meta-data 
-      android:name="com.truecaller.android.sdk.ClientId" 
-      android:value="@string/clientID" />
-    
-    <!-- ✅ Firebase Messaging - Notification Channel -->
-    <meta-data
-      android:name="com.google.firebase.messaging.default_notification_channel_id"
-      android:value="vaidik_talk_notifications"
-      tools:replace="android:value" />
-
-    <!-- ✅ Firebase Messaging - Notification Icon -->
-    <meta-data
-      android:name="com.google.firebase.messaging.default_notification_icon"
-      android:resource="@mipmap/ic_launcher"
-      tools:replace="android:resource" />
-
-    <!-- ✅ Notifee Receiver (for notification actions) -->
-    <receiver
-      android:name="io.invertase.notifee.NotifeeReceiver"
-      android:exported="false" />
-
-    <!-- ✅ Main Activity -->
-    <activity
-      android:name=".MainActivity"
+    <application
+      android:name=".MainApplication"
       android:label="@string/app_name"
-      android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
-      android:launchMode="singleTask"
-      android:windowSoftInputMode="adjustResize"
-      android:exported="true">
-      <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-      </intent-filter>
-    </activity>
+      android:icon="@mipmap/ic_launcher"
+      android:roundIcon="@mipmap/ic_launcher_round"
+      android:allowBackup="false"
+      android:theme="@style/AppTheme"
+      android:usesCleartextTraffic="true"
+      android:supportsRtl="true">
 
-    <!-- ✅ Vision Camera Configuration -->
-    <meta-data
-      android:name="com.mrousavy.camera.react-native-vision-camera"
-      android:value="true" />
+      <!-- ✅ Main Activity -->
+      <activity
+        android:name=".MainActivity"
+        android:label="@string/app_name"
+        android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+        android:launchMode="singleTask"
+        android:windowSoftInputMode="adjustResize"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+      </activity>
 
-  </application>
+      <!-- ✅ Incoming Call Activity -->
+      <activity
+          android:name=".IncomingCallActivity"
+          android:showOnLockScreen="true"
+          android:turnScreenOn="true"
+          android:exported="true"
+          android:excludeFromRecents="true"
+          android:launchMode="singleTask"
+          android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+          <intent-filter>
+              <action android:name="INCOMING_CALL" />
+              <category android:name="android.intent.category.DEFAULT" />
+          </intent-filter>
+      </activity>
 
+      <!-- ✅ Firebase Messaging Service (CRITICAL) -->
+      <service
+        android:name=".MyFirebaseMessagingService"
+        android:exported="false">
+        <intent-filter>
+          <action android:name="com.google.firebase.MESSAGING_EVENT" />
+        </intent-filter>
+      </service>
+
+      <!-- ✅ TrueCaller -->
+      <meta-data
+        android:name="com.truecaller.android.sdk.ClientId"
+        android:value="@string/clientID"/>
+
+      <!-- ✅ Firebase Metadata -->
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_channel_id"
+        android:value="vaidik_talk_notifications"
+        tools:replace="android:value" />
+
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_icon"
+        android:resource="@mipmap/ic_launcher"
+        tools:replace="android:resource" />
+
+    </application>
 </manifest>

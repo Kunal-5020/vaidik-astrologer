@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+// src/screens/main_screens/MyServices.js
+
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,249 +10,609 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  RefreshControl,
+  TextInput,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchServices, updateServiceStatus } from '../../api/services';
+import { useAuth } from '../../contexts/AuthContext';
+import { astrologerService } from '../../services/api/astrologer.service';
+import { useFocusEffect } from '@react-navigation/native';
+
+const { width } = Dimensions.get('window');
 
 const MyServicesScreen = ({ navigation }) => {
+  // ✅ ALL HOOKS AT THE TOP
+  const { state, updateAstrologer } = useAuth();
+  const { astrologer } = state;
+
   const [loading, setLoading] = useState(true);
-  const [services, setServices] = useState([]);
-  const [activeServices, setActiveServices] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatingService, setUpdatingService] = useState(null);
+  const [profileData, setProfileData] = useState(null);
+  const [editingPricing, setEditingPricing] = useState(false);
+  const [chatRate, setChatRate] = useState('');
+  const [callRate, setCallRate] = useState('');
+  const [videoCallRate, setVideoCallRate] = useState('');
+  const [savingPricing, setSavingPricing] = useState(false);
 
-  const MyServies = [
-    {
-      key: 'chat',
-      title: 'Chat Consultation',
-      sales: '111,001 Sales',
-      rate: '₹8/min',
-      earnings: '₹479',
-      consults: 48,
-    },
-    {
-      key: 'voice',
-      title: 'Voice Call',
-      sales: '302 Sales',
-      rate: '₹10/min',
-      earnings: '₹425',
-      consults: 474,
-    },
-    {
-      key: 'video',
-      title: 'Video Call',
-      sales: '302 Sales',
-      rate: '₹20/min',
-      earnings: '₹0',
-      consults: 0,
-    },
-    {
-      key: 'live',
-      title: 'Live Stream Session',
-      sales: '45 Sessions',
-      rate: '₹50/session',
-      earnings: '₹0',
-      consults: 0,
-    },
-  ];
+  const fetchServiceData = useCallback(async () => {
+    try {
+      setLoading(true);
 
-  // ✅ Load saved + backend data and merge
-  useEffect(() => {
-    const initializeData = async () => {
-      try {
-        const savedState = await AsyncStorage.getItem('activeServices');
-        const localToggles = savedState ? JSON.parse(savedState) : {};
+      const response = await astrologerService.getProfile();
 
-        const apiData = await fetchServices();
-        const fetchedServices = apiData?.services || [];
-
-        // merge backend services with local toggles
-        const mergedToggles = {};
-        fetchedServices.forEach(s => {
-          mergedToggles[s.key] = localToggles[s.key] ?? false;
-        });
-
-        setServices(fetchedServices);
-        setActiveServices(mergedToggles);
-      } catch (err) {
-        console.log('Error initializing data:', err);
-      } finally {
-        setLoading(false);
+      if (response.success && response.data) {
+        setProfileData(response.data);
+        
+        const pricing = response.data.pricing || {};
+        setChatRate(pricing.chat?.toString() || '');
+        setCallRate(pricing.call?.toString() || '');
+        setVideoCallRate(pricing.videoCall?.toString() || '');
+        
+        console.log('✅ [MyServices] Profile data loaded');
       }
-    };
 
-    initializeData();
+      setLoading(false);
+    } catch (error) {
+      console.error('❌ [MyServices] Error:', error);
+      Alert.alert('Error', error.message || 'Failed to load service data');
+      setLoading(false);
+    }
   }, []);
 
-  // ✅ Toggle + save locally + sync API
-  const toggleService = async key => {
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchServiceData();
+    setRefreshing(false);
+  }, [fetchServiceData]);
+
+  const toggleService = useCallback(async (serviceKey) => {
     try {
-      const updated = { ...activeServices, [key]: !activeServices[key] };
-      setActiveServices(updated);
-      await AsyncStorage.setItem('activeServices', JSON.stringify(updated));
+      setUpdatingService(serviceKey);
 
-      await updateServiceStatus(key, updated[key]);
-    } catch (err) {
-      console.log('API sync failed:', err.message);
-      Alert.alert('Offline Mode', 'Changes will sync later when online.');
+      const currentProfile = profileData || astrologer;
+      let updateData = {};
+
+      switch (serviceKey) {
+        case 'chat':
+          updateData = { isChatEnabled: !currentProfile.isChatEnabled };
+          break;
+        case 'call':
+          updateData = { isCallEnabled: !currentProfile.isCallEnabled };
+          break;
+        default:
+          setUpdatingService(null);
+          return;
+      }
+
+      const response = await astrologerService.updateProfile(updateData);
+
+      if (response.success) {
+        setProfileData(prev => ({
+          ...prev,
+          ...updateData,
+        }));
+
+        if (updateAstrologer) {
+          updateAstrologer(updateData);
+        }
+
+        console.log('✅ [MyServices] Service toggled');
+      }
+    } catch (error) {
+      console.error('❌ [MyServices] Error:', error);
+      Alert.alert('Error', error.message || 'Failed to update service');
+    } finally {
+      setUpdatingService(null);
     }
-  };
+  }, [profileData, astrologer, updateAstrologer]);
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6C63FF" />
-        <Text style={{ marginTop: 10 }}>Loading your services...</Text>
-      </View>
-    );
-  }
+  const handleSavePricing = useCallback(async () => {
+    try {
+      const chat = parseInt(chatRate) || 0;
+      const call = parseInt(callRate) || 0;
+      const videoCall = parseInt(videoCallRate) || 0;
 
-  const handleSetting = () =>{
-    navigation.navigate('Setting')
-  }
+      if (chat < 10 || call < 10) {
+        Alert.alert('Validation Error', 'Rates must be at least ₹10/min');
+        return;
+      }
+
+      if (chat > 1000 || call > 1000 || videoCall > 1000) {
+        Alert.alert('Validation Error', 'Rates cannot exceed ₹1000/min');
+        return;
+      }
+
+      setSavingPricing(true);
+
+      const response = await astrologerService.updatePricing({
+        chat,
+        call,
+        videoCall,
+      });
+
+      if (response.success) {
+        Alert.alert('Success', 'Pricing updated successfully');
+        setEditingPricing(false);
+        
+        setProfileData(prev => ({
+          ...prev,
+          pricing: { chat, call, videoCall },
+        }));
+
+        if (updateAstrologer) {
+          updateAstrologer({
+            pricing: { chat, call, videoCall },
+          });
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to update pricing');
+    } finally {
+      setSavingPricing(false);
+    }
+  }, [chatRate, callRate, videoCallRate, updateAstrologer]);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log('📊 [MyServices] Screen focused');
+      fetchServiceData();
+    }, [fetchServiceData])
+  );
+
+  const currentProfile = profileData || astrologer || {};
+  const pricing = currentProfile.pricing || {};
+  const showPricingWarning = !pricing.chat || !pricing.call;
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Services</Text>
-        <TouchableOpacity onPress={handleSetting}>
-          <Icon name="settings-outline" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Active Services</Text>
-
-        {MyServies.map(item => (
-          <View key={item.key} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Switch
-                value={!!activeServices[item.key]}
-                onValueChange={() => toggleService(item.key)}
-                trackColor={{ false: '#ccc', true: '#6C63FF' }}
-                thumbColor={'#fff'}
-              />
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {loading && !profileData ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#372643" />
+          <Text style={styles.loadingText}>Loading services...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh}
+              colors={['#372643']}
+              tintColor="#372643"
+            />
+          }
+        >
+          {/* Pricing Warning */}
+          {showPricingWarning && (
+            <View style={styles.warningCard}>
+              <Icon name="warning-outline" size={22} color="#F59E0B" />
+              <View style={styles.warningContent}>
+                <Text style={styles.warningTitle}>Setup Required</Text>
+                <Text style={styles.warningText}>
+                  Set your consultation rates to start accepting orders
+                </Text>
+                <TouchableOpacity
+                  style={styles.setupButton}
+                  onPress={() => setEditingPricing(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.setupButtonText}>Setup Now</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <Text style={styles.salesText}>{item.sales}</Text>
-            <Text style={styles.rateText}>{item.rate}</Text>
-            <Text style={styles.earningText}>Earnings: {item.earnings}</Text>
+          )}
+
+          {/* Pricing Section */}
+          <View style={styles.pricingCard}>
+            <View style={styles.pricingHeader}>
+              <Text style={styles.sectionTitle}>Consultation Rates</Text>
+              {!editingPricing && (
+                <TouchableOpacity onPress={() => setEditingPricing(true)}>
+                  <Icon name="create-outline" size={20} color="#372643" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {editingPricing ? (
+              <View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Chat Rate (₹/min)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={chatRate}
+                    onChangeText={setChatRate}
+                    keyboardType="numeric"
+                    placeholder="e.g., 50"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Call Rate (₹/min)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={callRate}
+                    onChangeText={setCallRate}
+                    keyboardType="numeric"
+                    placeholder="e.g., 100"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Video Call Rate (₹/min)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={videoCallRate}
+                    onChangeText={setVideoCallRate}
+                    keyboardType="numeric"
+                    placeholder="e.g., 150"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.cancelButton]}
+                    onPress={() => {
+                      setEditingPricing(false);
+                      setChatRate(pricing.chat?.toString() || '');
+                      setCallRate(pricing.call?.toString() || '');
+                      setVideoCallRate(pricing.videoCall?.toString() || '');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.button, styles.saveButton]}
+                    onPress={handleSavePricing}
+                    disabled={savingPricing}
+                    activeOpacity={0.8}
+                  >
+                    {savingPricing ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.priceDisplay}>
+                <View style={styles.priceItem}>
+                  <Text style={styles.priceLabel}>Chat</Text>
+                  <Text style={styles.priceValue}>₹{pricing.chat || 0}</Text>
+                  <Text style={styles.priceUnit}>/min</Text>
+                </View>
+                <View style={styles.priceItem}>
+                  <Text style={styles.priceLabel}>Call</Text>
+                  <Text style={styles.priceValue}>₹{pricing.call || 0}</Text>
+                  <Text style={styles.priceUnit}>/min</Text>
+                </View>
+                <View style={styles.priceItem}>
+                  <Text style={styles.priceLabel}>Video</Text>
+                  <Text style={styles.priceValue}>₹{pricing.videoCall || 0}</Text>
+                  <Text style={styles.priceUnit}>/min</Text>
+                </View>
+              </View>
+            )}
           </View>
-        ))}
 
-        <Text style={styles.sectionTitle}>Additional Services</Text>
-        {[
-          { key: 'kundli', title: 'Kundli Making' },
-          { key: 'tarot', title: 'Tarot Card Reading' },
-          { key: 'palmistry', title: 'Palmistry' },
-          { key: 'numerology', title: 'Numerology Report' },
-        ].map(item => (
-          <View key={item.key} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Switch
-                value={!!activeServices[item.key]}
-                onValueChange={() => toggleService(item.key)}
-                trackColor={{ false: '#ccc', true: '#6C63FF' }}
-                thumbColor={'#fff'}
-              />
+          {/* Service Availability */}
+          <Text style={styles.sectionHeading}>Service Availability</Text>
+
+          {/* Chat Service */}
+          <View style={styles.serviceCard}>
+            <View style={styles.serviceContent}>
+              <View style={styles.serviceLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#10B98115' }]}>
+                  <Icon name="chatbubble-ellipses-outline" size={20} color="#10B981" />
+                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>Chat Consultation</Text>
+                  <Text style={styles.serviceRate}>₹{pricing.chat || 0}/min</Text>
+                </View>
+              </View>
+              {updatingService === 'chat' ? (
+                <ActivityIndicator size="small" color="#372643" />
+              ) : (
+                <Switch
+                  value={!!currentProfile.isChatEnabled}
+                  onValueChange={() => toggleService('chat')}
+                  trackColor={{ false: '#E5E7EB', true: '#E8EAF6' }}
+                  thumbColor={currentProfile.isChatEnabled ? '#372643' : '#9CA3AF'}
+                  ios_backgroundColor="#E5E7EB"
+                />
+              )}
             </View>
           </View>
-        ))}
 
-        {/* Pro Tip */}
-        <View style={styles.proTipCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-            <View style={styles.proTipIconBox}>
-              <MaterialIcons
-                name="lightbulb-outline"
-                size={22}
-                color="#FF7A00"
-              />
+          {/* Call Service */}
+          <View style={styles.serviceCard}>
+            <View style={styles.serviceContent}>
+              <View style={styles.serviceLeft}>
+                <View style={[styles.iconBox, { backgroundColor: '#3B82F615' }]}>
+                  <Icon name="call-outline" size={20} color="#3B82F6" />
+                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>Voice Call</Text>
+                  <Text style={styles.serviceRate}>₹{pricing.call || 0}/min</Text>
+                </View>
+              </View>
+              {updatingService === 'call' ? (
+                <ActivityIndicator size="small" color="#372643" />
+              ) : (
+                <Switch
+                  value={!!currentProfile.isCallEnabled}
+                  onValueChange={() => toggleService('call')}
+                  trackColor={{ false: '#E5E7EB', true: '#E8EAF6' }}
+                  thumbColor={currentProfile.isCallEnabled ? '#372643' : '#9CA3AF'}
+                  ios_backgroundColor="#E5E7EB"
+                />
+              )}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.proTipTitle}>Pro Tip</Text>
-              <Text style={styles.proTipText}>
-                Enable more services to increase your visibility and earnings
-                potential.
+          </View>
+
+          {/* Info Card */}
+          <View style={styles.infoCard}>
+            <Icon name="information-circle-outline" size={20} color="#372643" />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoTitle}>How it works</Text>
+              <Text style={styles.infoText}>
+                Enable services you want to offer. Users will be charged per minute based on your rates.
               </Text>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      )}
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignContent: 'center',
     backgroundColor: '#F5F6FA',
-    width: '100%',
   },
-  header: {
-    width: '100%',
-    height:60,
-    backgroundColor: '#6C63FF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+  scrollContent: {
+    padding: Math.min(width * 0.04, 16),
+    paddingBottom: 24,
   },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  scrollContent: { padding: 15, paddingBottom: 100 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginTop: 15,
-    marginBottom: 8,
-  },
-  card: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#333' },
-  salesText: { fontSize: 13, color: '#666', marginTop: 5 },
-  rateText: { color: '#FF7A00', fontWeight: '700', marginTop: 4 },
-  earningText: { color: '#333', fontSize: 13, marginTop: 4 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  proTipCard: {
-    backgroundColor: '#FFF5E5',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 15,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FFA500',
-  },
-  proTipTitle: { color: '#FF7A00', fontWeight: '700', marginBottom: 4 },
-  proTipText: { color: '#333', fontSize: 13 },
-  proTipIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#6B7280',
+    fontSize: 14,
+  },
+
+  // Warning Card
+  warningCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  warningContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  warningTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 3,
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#78350F',
+    marginBottom: 10,
+    lineHeight: 17,
+  },
+  setupButton: {
+    backgroundColor: '#F59E0B',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  setupButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Section
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#372643',
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#372643',
+    marginTop: 8,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+
+  // Pricing Card
+  pricingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  pricingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  priceDisplay: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  priceItem: {
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  priceValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#372643',
+  },
+  priceUnit: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  // Input
+  inputGroup: {
+    marginBottom: 14,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: '#111827',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  // Buttons
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderColor: '#372643',
+  },
+  cancelButtonText: {
+    color: '#372643',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: '#372643',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Service Card
+  serviceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  serviceContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  serviceLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  serviceInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  serviceName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  serviceRate: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  // Info Card
+  infoCard: {
+    backgroundColor: '#E8EAF6',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  infoContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  infoTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#372643',
+    marginBottom: 3,
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#4A5568',
+    lineHeight: 17,
   },
 });
 

@@ -1,324 +1,180 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ScrollView,
+  ActivityIndicator,
+  StatusBar,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
-const ordersData = [
-  {
-    id: '1',
-    name: 'Pooja K',
-    orderId: 'THD4ER9K',
-    type: 'Chat',
-    date: 'Today',
-    amount: 5990,
-    status: 'active',
-  },
-  {
-    id: '2',
-    name: 'Rajesh S',
-    orderId: 'XYZ123AB',
-    type: 'Video Call',
-    date: 'Yesterday',
-    amount: 153000,
-    status: 'completed',
-  },
-  {
-    id: '3',
-    name: 'Priya M',
-    orderId: 'ABC789DE',
-    type: 'Voice Call',
-    date: '11/1/2025',
-    amount: 10500,
-    status: 'pending',
-  },
-  {
-    id: '4',
-    name: 'Amit K',
-    orderId: 'DEF456GH',
-    type: 'Chat + Call',
-    date: 'Today',
-    amount: 2500,
-    status: 'active',
-  },
-];
+// Services
+import { livestreamService } from '../../services'; 
+// NOTE: Once you have a 'getAllOrders' endpoint in AstrologerService, swap 'livestreamService' below.
 
-const quickActions = [
-  { id: '1', name: 'Pooja K', type: 'Chat+Call', date: 'Today', amount: 3000 },
-  { id: '2', name: 'Kapri E', type: 'Video', date: 'Today', amount: 5500 },
-];
-
-const tabs = ['All', 'Active', 'Pending', 'Completed'];
+const TABS = ['All', 'Calls', 'Chats', 'Live'];
 
 const OrdersScreen = () => {
   const [selectedTab, setSelectedTab] = useState('All');
-  const filteredOrders =
-    selectedTab === 'All'
-      ? ordersData
-      : ordersData.filter(
-          order => order.status.toLowerCase() === selectedTab.toLowerCase(),
-        );
+  const [historyData, setHistoryData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const renderOrderItem = ({ item }) => (
-    <View style={styles.orderCard}>
-      <View style={styles.avatarCircle}>
-        <Text style={styles.avatarText}>
-          {item.name
-            .split(' ')
-            .map(n => n[0])
-            .join('')}
-        </Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.orderName}>{item.name}</Text>
-        <Text style={styles.orderDetail}>Order ID: {item.orderId}</Text>
-        <Text style={styles.orderDetail}>
-          {item.type} - {item.date}
-        </Text>
-      </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Text style={styles.orderAmount}>₹{item.amount.toLocaleString()}</Text>
-        <Text
-          style={[
-            styles.orderStatus,
-            item.status === 'active'
-              ? styles.activeStatus
-              : item.status === 'completed'
-              ? styles.completedStatus
-              : styles.pendingStatus,
-          ]}
-        >
-          {item.status}
-        </Text>
-      </View>
-    </View>
+  useFocusEffect(
+    useCallback(() => {
+      fetchHistory();
+    }, [])
   );
 
-  const renderQuickActionItem = item => (
-    <View key={item.id} style={styles.quickCard}>
-      <View style={styles.quickActionRow}>
-        <View style={styles.quickAvatar}>
-          <Text style={styles.quickAvatarText}>
-            {item.name
-              .split(' ')
-              .map(n => n[0])
-              .join('')}
-          </Text>
+  const fetchHistory = async () => {
+    try {
+      setLoading(true);
+      
+      // Currently fetching streams. 
+      // TODO: Replace with Promise.all([astrologerService.getOrders(), livestreamService.getMyStreams()])
+      const response = await livestreamService.getMyStreams({ page: 1, limit: 20 });
+      
+      if (response.success && response.data?.streams) {
+        // Map to a generic "Transaction" object structure
+        const formattedData = response.data.streams.map(item => ({
+          id: item._id,
+          type: 'Live', // This will allow filtering
+          title: item.title || 'Live Session',
+          date: item.createdAt,
+          amount: item.totalRevenue || 0,
+          status: item.status === 'live' ? 'Active' : 'Completed',
+          meta: `${item.totalViews || 0} views`
+        }));
+        setHistoryData(formattedData);
+      }
+    } catch (error) {
+      console.error('History Fetch Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredData = historyData.filter(item => {
+    if (selectedTab === 'All') return true;
+    return item.type === selectedTab;
+  });
+
+  const renderItem = ({ item }) => {
+    // Dynamic Icon based on type
+    let iconName = 'videocam';
+    let iconColor = '#FFB300';
+    let bgColor = '#FFF8E1';
+
+    if (item.type === 'Calls') { iconName = 'call'; iconColor = '#4CAF50'; bgColor = '#E8F5E9'; }
+    if (item.type === 'Chats') { iconName = 'chatbubble'; iconColor = '#2196F3'; bgColor = '#E3F2FD'; }
+
+    return (
+      <View style={styles.itemCard}>
+        <View style={[styles.iconContainer, { backgroundColor: bgColor }]}>
+          <Ionicons name={iconName} size={20} color={iconColor} />
         </View>
-        <View>
-          <Text style={styles.quickName}>{item.name}</Text>
-          <Text style={styles.quickType}>
-            {item.type} - {item.date}
+        <View style={styles.itemContent}>
+          <Text style={styles.itemTitle}>{item.title}</Text>
+          <Text style={styles.itemDate}>
+            {new Date(item.date).toLocaleDateString()} • {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
           </Text>
+          <Text style={styles.itemMeta}>{item.meta}</Text>
         </View>
-        <Text style={styles.quickAmount}>₹{item.amount.toLocaleString()}</Text>
+        <View style={styles.itemRight}>
+          <Text style={styles.itemAmount}>+ ₹{item.amount}</Text>
+          <View style={[styles.statusBadge, item.status === 'Active' ? styles.badgeActive : styles.badgeCompleted]}>
+            <Text style={[styles.statusText, item.status === 'Active' ? styles.textActive : styles.textCompleted]}>
+              {item.status}
+            </Text>
+          </View>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Fixed Header */}
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>My Orders</Text>
-        <View style={styles.tabContainer}>
-          {tabs.map(tab => (
-            <TouchableOpacity
-              key={tab}
-              style={[
-                styles.tabItem,
-                selectedTab === tab && styles.selectedTab,
-              ]}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar backgroundColor="#5A5DC2" barStyle="light-content" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>History & Earnings</Text>
+        
+        {/* Tabs */}
+        <View style={styles.tabRow}>
+          {TABS.map(tab => (
+            <TouchableOpacity 
+              key={tab} 
+              style={[styles.tabBtn, selectedTab === tab && styles.tabBtnActive]}
               onPress={() => setSelectedTab(tab)}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  selectedTab === tab && styles.selectedTabText,
-                ]}
-              >
-                {tab}
-              </Text>
+              <Text style={[styles.tabText, selectedTab === tab && styles.tabTextActive]}>{tab}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      {/* Scrollable Content */}
-      <ScrollView
-        style={{ flex: 1 }}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      >
-        <FlatList
-          data={filteredOrders}
+      {/* Content */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#5A5DC2" />
+        </View>
+      ) : (
+        <FlatList 
+          data={filteredData}
           keyExtractor={item => item.id}
-          renderItem={renderOrderItem}
-          scrollEnabled={false} // Disable inner scroll
-          contentContainerStyle={{ paddingVertical: 12 }}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.center}>
+              <Text style={styles.emptyText}>No records found for {selectedTab}</Text>
+            </View>
+          }
         />
-
-        <Text style={styles.quickTitle}>Quick Actions</Text>
-        {quickActions.map(renderQuickActionItem)}
-      </ScrollView>
-    </View>
+      )}
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7F7FC',
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
+  
+  header: { backgroundColor: '#5A5DC2', padding: 20, paddingBottom: 15, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#FFF', marginBottom: 20 },
+  
+  tabRow: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12, padding: 4 },
+  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
+  tabBtnActive: { backgroundColor: '#FFF' },
+  tabText: { color: '#E0E0E0', fontWeight: '600' },
+  tabTextActive: { color: '#5A5DC2', fontWeight: 'bold' },
+
+  listContent: { padding: 16 },
+  
+  itemCard: {
+    flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 12,
+    alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2
   },
-  headerContainer: {
-    backgroundColor: '#5A5DC2',
-    padding: 12,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 23,
-    color: 'white',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    paddingTop: 12,
-  },
-  tabItem: {
-    flex: 1,
-    height: 45,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#8888b8',
-    marginHorizontal: 4,
-  },
-  selectedTab: {
-    backgroundColor: '#FF8C42',
-  },
-  tabText: {
-    color: '#d1d1f7',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  selectedTabText: {
-    color: '#fff',
-  },
-  orderCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
-    marginHorizontal: 8,
-    marginBottom: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  avatarCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#c7c7dd',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontWeight: '700',
-    color: '#666',
-    fontSize: 15,
-  },
-  orderName: {
-    fontWeight: '700',
-    fontSize: 16,
-    marginBottom: 3,
-  },
-  orderDetail: {
-    color: '#666',
-    fontSize: 13,
-  },
-  orderAmount: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#000',
-    marginBottom: 4,
-  },
-  orderStatus: {
-    fontWeight: '600',
-    fontSize: 12,
-    textTransform: 'capitalize',
-    textAlign: 'right',
-  },
-  activeStatus: {
-    color: '#2aa152',
-  },
-  completedStatus: {
-    color: '#939393',
-  },
-  pendingStatus: {
-    color: '#c98925',
-  },
-  quickTitle: {
-    fontWeight: '600',
-    fontSize: 17,
-    marginVertical: 14,
-    color: '#4B4F7D',
-    paddingLeft: 12,
-  },
-  quickCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 8,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  quickActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quickAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffd39c',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  quickAvatarText: {
-    fontWeight: '700',
-    fontSize: 16,
-    color: '#E17B00',
-  },
-  quickName: {
-    fontWeight: '700',
-    fontSize: 14,
-    color: '#333',
-  },
-  quickType: {
-    fontSize: 12,
-    color: '#999',
-  },
-  quickAmount: {
-    marginLeft: 'auto',
-    color: '#E17B00',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  iconContainer: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  itemContent: { flex: 1 },
+  itemTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  itemDate: { fontSize: 12, color: '#888', marginVertical: 2 },
+  itemMeta: { fontSize: 12, color: '#999' },
+  
+  itemRight: { alignItems: 'flex-end' },
+  itemAmount: { fontSize: 16, fontWeight: 'bold', color: '#2E7D32', marginBottom: 4 },
+  
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  badgeActive: { backgroundColor: '#E8F5E9' },
+  badgeCompleted: { backgroundColor: '#F5F5F5' },
+  statusText: { fontSize: 10, fontWeight: 'bold' },
+  textActive: { color: '#2E7D32' },
+  textCompleted: { color: '#757575' },
+  
+  emptyText: { color: '#999', fontStyle: 'italic' },
 });
 
 export default OrdersScreen;

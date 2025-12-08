@@ -6,8 +6,8 @@ import { STORAGE_KEYS } from '../config/constants';
 
 const initialState = {
   isAuthenticated: false,
-  user: null,
   astrologer: null,
+  user: null,
   phoneNumber: null,
   countryCode: null,
   isOtpSent: false,
@@ -31,6 +31,8 @@ const authReducer = (state, action) => {
         isAuthenticated: true,
         user: action.payload.user,
         astrologer: action.payload.astrologer,
+        isLoading: false,
+        error: null,
       };
     case 'RESTORE_AUTH':
       return {
@@ -39,12 +41,22 @@ const authReducer = (state, action) => {
         user: action.payload.user,
         astrologer: action.payload.astrologer,
       };
+    case 'UPDATE_ASTROLOGER':
+      return {
+        ...state,
+        astrologer: {
+          ...state.astrologer,
+          ...action.payload,
+        },
+      };
     case 'LOGOUT':
       return initialState;
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, isLoading: false };
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
     default:
       return state;
   }
@@ -76,6 +88,14 @@ export const AuthProvider = ({ children }) => {
         hasAccessToken: !!accessToken,
         hasUser: !!user,
         hasAstrologer: !!astrologer,
+        astrologerData: astrologer ? {
+          name: astrologer.name,
+          email: astrologer.email,
+          phone: astrologer.phoneNumber,
+          experienceYears: astrologer.experienceYears,
+          specializations: astrologer.specializations,
+          languages: astrologer.languages,
+        } : null,
       });
 
       if (accessToken && user && astrologer) {
@@ -98,7 +118,7 @@ export const AuthProvider = ({ children }) => {
   const sendLoginOtp = useCallback(async (data) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
+      dispatch({ type: 'CLEAR_ERROR' });
 
       console.log('📱 [AuthContext] Sending login OTP:', {
         phoneNumber: data.phoneNumber,
@@ -126,16 +146,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Verify OTP and login astrologer (FIXED - CORRECT RESPONSE STRUCTURE)
+   * Verify OTP and login astrologer
    */
   const verifyLoginOtp = useCallback(async (data) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
+      dispatch({ type: 'CLEAR_ERROR' });
 
       console.log('🔐 [AuthContext] Verifying OTP...');
 
       const response = await astrologerAuthService.verifyLoginOtp(data);
+
+      console.log('response',response);
 
       console.log('📊 [AuthContext] Verify response structure:', {
         success: response.success,
@@ -146,7 +168,6 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (response.success && response.data) {
-        // ✅ FIXED: Correct destructuring based on actual response
         const { tokens, user, astrologer } = response.data;
         
         if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
@@ -159,9 +180,17 @@ export const AuthProvider = ({ children }) => {
 
         const { accessToken, refreshToken } = tokens;
 
-        console.log('💾 [AuthContext] Saving login data to storage...');
+        console.log('💾 [AuthContext] Saving login data to storage...', {
+          astrologerData: {
+            name: astrologer.name,
+            email: astrologer.email,
+            phone: astrologer.phoneNumber,
+            experienceYears: astrologer.experienceYears,
+            specializations: astrologer.specializations,
+            languages: astrologer.languages,
+          }
+        });
 
-        // ✅ Save tokens and user data
         await Promise.all([
           storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
           storageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
@@ -171,15 +200,14 @@ export const AuthProvider = ({ children }) => {
 
         console.log('✅ [AuthContext] All data saved successfully');
 
-        // ✅ Update state
         dispatch({ 
           type: 'LOGIN_SUCCESS', 
           payload: { user, astrologer } 
         });
 
         console.log('✅ [AuthContext] Login successful:', {
-          userId: user?._id,
-          astrologerId: astrologer?._id,
+          userId: user?.id,
+          astrologerId: astrologer?.id,
         });
       } else {
         throw new Error('Invalid response structure from server');
@@ -190,8 +218,127 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       const errorMessage = error.formattedMessage || error.message || 'Invalid OTP';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
-      dispatch({ type: 'SET_LOADING', payload: false });
       console.error('❌ [AuthContext] Verify OTP error:', errorMessage);
+      throw error;
+    }
+  }, []);
+
+  /**
+   * Truecaller login
+   */
+  const loginWithTruecaller = useCallback(async (truecallerData) => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
+
+      console.log('📱 [AuthContext] Logging in with Truecaller...');
+      
+      const response = await astrologerAuthService.verifyTruecaller(truecallerData);
+      
+      console.log('📊 [AuthContext] Truecaller response:', {
+        success: response.success,
+        hasData: !!response.data,
+        canLogin: response.data?.canLogin,
+        hasUser: !!response.data?.user,
+        hasAstrologer: !!response.data?.astrologer,
+      });
+
+      if (response.success && response.data) {
+        // Check if astrologer account exists
+        if (response.data.canLogin === false) {
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return {
+            success: true,
+            data: {
+              canLogin: false,
+              message: response.data.message,
+              isNewUser: true,
+            }
+          };
+        }
+
+        // Astrologer exists - proceed with login
+        const { tokens, user, astrologer } = response.data;
+        
+        if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
+          throw new Error('Invalid token structure from server');
+        }
+
+        if (!user || !astrologer) {
+          throw new Error('Missing user or astrologer data from Truecaller response');
+        }
+
+        const { accessToken, refreshToken } = tokens;
+
+        console.log('💾 [AuthContext] Saving Truecaller login data...');
+
+        await Promise.all([
+          storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+          storageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
+          storageService.setObject(STORAGE_KEYS.USER_DATA, user),
+          storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, astrologer),
+        ]);
+
+        console.log('✅ [AuthContext] Truecaller data saved successfully');
+
+        dispatch({ 
+          type: 'LOGIN_SUCCESS', 
+          payload: { user, astrologer } 
+        });
+
+        console.log('✅ [AuthContext] Truecaller login successful:', {
+          userId: user?.id,
+          astrologerId: astrologer?.id,
+          isNewUser: response.data?.isNewUser,
+        });
+      } else {
+        throw new Error('Invalid response structure from server');
+      }
+
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return response;
+    } catch (error) {
+      const errorMessage = error.formattedMessage || error.message || 'Truecaller login failed';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      console.error('❌ [AuthContext] Truecaller login error:', errorMessage);
+      throw error;
+    }
+  }, []);
+
+  /**
+   * ✅ NEW: Update astrologer data in context and storage
+   */
+  const updateAstrologer = useCallback(async (updates) => {
+    try {
+      console.log('🔄 [AuthContext] Updating astrologer data:', updates);
+
+      // Update context state
+      dispatch({ 
+        type: 'UPDATE_ASTROLOGER', 
+        payload: updates 
+      });
+
+      // Get current astrologer data from storage
+      const currentAstrologer = await storageService.getObject(STORAGE_KEYS.ASTROLOGER_DATA);
+      
+      if (currentAstrologer) {
+        // Merge updates with current data
+        const updatedAstrologer = {
+          ...currentAstrologer,
+          ...updates,
+        };
+
+        // Save back to storage
+        await storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, updatedAstrologer);
+        
+        console.log('✅ [AuthContext] Astrologer data updated:', {
+          updatedFields: Object.keys(updates),
+          newData: updatedAstrologer,
+        });
+      }
+    } catch (error) {
+      console.error('❌ [AuthContext] Failed to update astrologer:', error);
       throw error;
     }
   }, []);
@@ -216,6 +363,7 @@ export const AuthProvider = ({ children }) => {
       ]);
       
       dispatch({ type: 'LOGOUT' });
+
       console.log('✅ [AuthContext] Logout complete');
     } catch (error) {
       console.error('❌ [AuthContext] Logout error:', error);
@@ -236,9 +384,12 @@ export const AuthProvider = ({ children }) => {
       state,
       sendLoginOtp,
       verifyLoginOtp,
+      loginWithTruecaller,
       logout,
+      restoreAuth,
+      updateAstrologer, // ✅ Added
     }),
-    [state, sendLoginOtp, verifyLoginOtp, logout]
+    [state, sendLoginOtp, verifyLoginOtp, loginWithTruecaller, logout, restoreAuth, updateAstrologer]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

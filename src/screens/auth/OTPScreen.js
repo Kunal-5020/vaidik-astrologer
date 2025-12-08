@@ -1,4 +1,4 @@
-// src/screens/auth/AstrologerOTPScreen.js (COMPLETELY FIXED)
+// src/screens/auth/AstrologerOTPScreen.js (UPDATED WITH YOUR THEME)
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -10,18 +10,19 @@ import {
   Platform,
   Keyboard,
   BackHandler,
+  Animated,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import OTPStyles from '../../style/OTPStyle';
 import { useAuth } from '../../contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
+import OTPStyles from '../../style/OTPStyle';
 
 const AstrologerOTPScreen = ({ navigation, route }) => {
-  // ✅ FIXED: Destructure verifyLoginOtp correctly
-  const { sendLoginOtp, verifyLoginOtp, state } = useAuth();
+  const { sendLoginOtp, verifyLoginOtp, loginWithTruecaller, state } = useAuth();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -29,10 +30,102 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
   const [focusedIndex, setFocusedIndex] = useState(null);
   const inputRefs = useRef([]);
 
+  // ✅ Animation values
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
   const styles = OTPStyles;
   const { phone, countryCode, phoneNumber } = route.params || {};
 
-  // ✅ Setup device info silently
+  // ✅ Initialize Truecaller SDK
+  const {
+    initializeTruecallerSDK,
+    openTruecallerForVerification,
+    isSdkUsable,
+    error: truecallerError,
+  } = useTruecaller({
+    androidClientId: '4rxptw6rdoll4cvj6ccb4qobzofhuuznw-ablj5mb_m',
+    androidSuccessHandler: handleTruecallerSuccess,
+    scopes: ['profile', 'phone', 'openid'],
+  });
+
+  // ✅ Initialize Truecaller on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeTruecallerSDK();
+        console.log('✅ Truecaller SDK initialized on OTP screen');
+      } catch (error) {
+        console.log('⚠️ Truecaller init failed on OTP screen:', error.message);
+      }
+    };
+    init();
+  }, []);
+
+  // ✅ Handle Truecaller errors
+  useEffect(() => {
+    if (truecallerError) {
+      console.error('❌ Truecaller error on OTP screen:', truecallerError);
+    }
+  }, [truecallerError]);
+
+  // ✅ Fade-in animation on mount
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // ✅ Pulse animation for timer (when < 10 seconds)
+  useEffect(() => {
+    if (timer > 0 && timer <= 10) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.15,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [timer]);
+
+  // ✅ Glow animation for verify button when OTP complete
+  useEffect(() => {
+    const isOtpComplete = otp.every(digit => digit !== '');
+    if (isOtpComplete) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      glowAnim.setValue(0);
+    }
+  }, [otp]);
+
+  // ✅ Setup device info
   useEffect(() => {
     const setupDeviceInfo = async () => {
       try {
@@ -67,7 +160,7 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
     setupDeviceInfo();
   }, []);
 
-  // Timer effect
+  // ✅ Timer countdown
   useEffect(() => {
     if (timer === 0) return;
 
@@ -78,7 +171,7 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
     return () => clearInterval(interval);
   }, [timer]);
 
-  // Handle back button
+  // ✅ Handle back button
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
@@ -91,6 +184,89 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
     return () => backHandler.remove();
   }, [navigation]);
 
+  /**
+   * ✅ Handle Truecaller success
+   */
+  async function handleTruecallerSuccess(data) {
+    try {
+      console.log('🔄 [OTPScreen] Processing Truecaller data...');
+
+      const truecallerData = {
+        authorizationCode: data.authorizationCode,
+        codeVerifier: data.codeVerifier,
+      };
+
+      console.log('📤 [OTPScreen] Sending to backend...');
+      setIsVerifying(true);
+
+      const authResult = await loginWithTruecaller(truecallerData);
+      
+      console.log('📥 [OTPScreen] Truecaller response:', {
+        success: authResult?.success,
+        canLogin: authResult?.data?.canLogin,
+        hasUser: !!authResult?.data?.user,
+        hasAstrologer: !!authResult?.data?.astrologer,
+      });
+
+      if (authResult && authResult.success) {
+        if (authResult.data.canLogin === false) {
+          console.log('⚠️ [OTPScreen] No astrologer account found');
+          Alert.alert(
+            'Account Not Found',
+            authResult.data.message + '\n\nWould you like to register as an astrologer?',
+            [
+              {
+                text: 'Register',
+                onPress: () => navigation.replace('RegisterPhone'),
+              },
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+            ]
+          );
+          return;
+        }
+
+        console.log('✅ [OTPScreen] Truecaller login successful');
+        
+        const astrologer = authResult.data?.astrologer;
+
+        if (!astrologer) {
+          throw new Error('Invalid response from server');
+        }
+
+        // Navigate based on profile completion
+        if (!astrologer.isProfileComplete) {
+          console.log('🔄 [OTPScreen] Navigating to Details screen');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        } else {
+          console.log('🔄 [OTPScreen] Navigating to main app');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        }
+      } else {
+        throw new Error(authResult?.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('❌ [OTPScreen] Truecaller login error:', error);
+      Alert.alert(
+        'Login Failed',
+        error.message || 'Could not complete Truecaller login. Please try OTP verification.'
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  }
+
+  /**
+   * ✅ Handle OTP input change
+   */
   const handleChange = (text, index) => {
     if (text.length > 1) return;
 
@@ -103,21 +279,24 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
     }
 
     // Auto-submit when all digits filled
-    if (text && newOtp.every((digit, idx) => {
-      if (idx <= index) return digit !== '';
-      return otp[idx] !== '';
-    }) && index === 5) {
+    if (text && newOtp.every(digit => digit !== '') && index === 5) {
       Keyboard.dismiss();
       setTimeout(() => handleVerify(newOtp.join('')), 300);
     }
   };
 
+  /**
+   * ✅ Handle backspace
+   */
   const handleKeyPress = (e, index) => {
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   };
 
+  /**
+   * ✅ Handle resend OTP
+   */
   const handleResend = async () => {
     if (timer > 0) return;
 
@@ -142,11 +321,21 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
     }
   };
 
-  // ✅ FIXED: handleVerify function
+  /**
+   * ✅ Handle OTP verification
+   */
   const handleVerify = async (otpValue = otp.join('')) => {
     Keyboard.dismiss();
 
     if (otpValue.length !== 6) {
+      // Shake animation for error
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ]).start();
+
       Alert.alert('Invalid OTP', 'Please enter all 6 digits');
       return;
     }
@@ -160,7 +349,6 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
       setIsVerifying(true);
       console.log('🔐 [OTPScreen] Starting OTP verification...');
 
-      // ✅ FIXED: Call verifyLoginOtp directly (not state.verifyLoginOtp!)
       const response = await verifyLoginOtp({
         phoneNumber: phoneNumber,
         countryCode: countryCode,
@@ -174,13 +362,35 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
       console.log('✅ [OTPScreen] OTP verification successful', response);
 
       if (response?.success) {
-        console.log('🎉 [OTPScreen] Redirecting to Home screen...');
-        navigation.replace('Home');
+        const astrologer = response.data?.astrologer;
+
+        // Navigate based on profile completion
+        if (!astrologer?.isProfileComplete) {
+          console.log('🔄 [OTPScreen] Navigating to Details screen');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        } else {
+          console.log('🔄 [OTPScreen] Navigating to main app');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+        }
       } else {
         throw new Error('Verification response invalid');
       }
     } catch (error) {
       console.error('❌ [OTPScreen] Verification failed:', error);
+
+      // Shake animation for error
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ]).start();
 
       const errorMessage =
         error.formattedMessage ||
@@ -195,6 +405,29 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
     }
   };
 
+  /**
+   * ✅ Handle Truecaller button press
+   */
+  const handleTruecallerLogin = async () => {
+    try {
+      const isUsable = await isSdkUsable();
+
+      if (!isUsable) {
+        Alert.alert(
+          'Truecaller Not Available',
+          'Please install Truecaller app or continue with OTP verification.'
+        );
+        return;
+      }
+
+      console.log('📱 [OTPScreen] Opening Truecaller verification...');
+      await openTruecallerForVerification();
+    } catch (error) {
+      console.error('❌ Truecaller error:', error);
+      Alert.alert('Error', 'Could not open Truecaller. Please continue with OTP.');
+    }
+  };
+
   const handleBackPress = () => {
     navigation.goBack();
   };
@@ -202,10 +435,24 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
   const isOtpComplete = otp.every(digit => digit !== '');
   const canSubmit = isOtpComplete && !isVerifying && !!deviceInfo;
 
+  // ✅ Animated glow opacity
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.5],
+  });
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#121212' }}>
-      <View style={styles.mainContainer}>
-        {/* Header */}
+    <SafeAreaView style={styles.safeArea}>
+      <Animated.View 
+        style={[
+          styles.mainContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateX: shakeAnim }],
+          }
+        ]}
+      >
+        {/* ✅ Header */}
         <View>
           <View style={styles.headerContainer}>
             <TouchableOpacity
@@ -221,17 +468,17 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
           <View style={styles.divider} />
         </View>
 
-        {/* Content */}
+        {/* ✅ Content */}
         <View style={styles.contentContainer}>
-          {/* Message */}
+          {/* ✅ Message */}
           <Text style={styles.messageText}>
             Enter the 6-digit code sent to{'\n'}
             <Text style={styles.phoneNumberHighlight}>{phone}</Text>
           </Text>
 
-          {/* OTP Input Boxes */}
           {deviceInfo ? (
             <>
+              {/* ✅ OTP Input Boxes */}
               <View style={styles.otpInputContainer}>
                 {otp.map((digit, index) => (
                   <TextInput
@@ -251,13 +498,12 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
                     ]}
                     editable={!isVerifying}
                     selectTextOnFocus
-                    placeholder="•"
-                    placeholderTextColor="#ffffff40"
+                    placeholder="0"
+                    placeholderTextColor="#cccccc"
                   />
                 ))}
               </View>
 
-              {/* Verify Button */}
               <TouchableOpacity
                 style={[
                   styles.verifyButton,
@@ -273,13 +519,19 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
                 )}
               </TouchableOpacity>
 
-              {/* Resend Container */}
+              {/* ✅ Resend Container with Pulse Animation */}
               <View style={styles.resendContainer}>
                 {timer > 0 ? (
-                  <Text style={styles.timerText}>
-                    Resend OTP in{' '}
-                    <Text style={styles.timerHighlight}>{timer}s</Text>
-                  </Text>
+                  <Animated.View
+                    style={{
+                      transform: [{ scale: timer <= 10 ? pulseAnim : 1 }],
+                    }}
+                  >
+                    <Text style={styles.timerText}>
+                      Resend OTP in{' '}
+                      <Text style={styles.timerHighlight}>{timer}s</Text>
+                    </Text>
+                  </Animated.View>
                 ) : (
                   <TouchableOpacity
                     onPress={handleResend}
@@ -294,40 +546,36 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
                 )}
               </View>
 
-              {/* Divider */}
+              {/* ✅ Divider */}
               <View style={styles.dividerContainer}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>Or</Text>
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* Truecaller Button */}
+              {/* ✅ Truecaller Button */}
               <TouchableOpacity
                 style={styles.truecallerButton}
                 disabled={isVerifying}
-                onPress={() => console.log('Truecaller login')}
+                onPress={handleTruecallerLogin}
               >
-                <Icon name="phone" size={20} color="#000000" />
+                <Image
+                  source={require('../../assets/phone-call.png')}
+                  style={styles.truecallerIcon}
+                />
                 <Text style={styles.truecallerButtonText}>
                   Verify with Truecaller
                 </Text>
               </TouchableOpacity>
             </>
           ) : (
-            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#FFD700" />
-              <Text
-                style={[
-                  styles.timerText,
-                  { marginTop: 12, color: '#FFD700', fontWeight: '500' },
-                ]}
-              >
-                Preparing device...
-              </Text>
+              <Text style={styles.loadingText}>Preparing device...</Text>
             </View>
           )}
         </View>
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 };

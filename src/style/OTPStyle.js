@@ -1,52 +1,57 @@
+// src/style/OTPStyle.js (UPDATED TO MATCH YOUR THEME)
 import { StyleSheet, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 const OTPStyles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#372643',
   },
   mainContainer: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#372643',
   },
   
-  // Header Styles
+  // ✅ Header Styles (matching login)
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
     borderRadius: 8,
+    backgroundColor: '#4a3456',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#ffffff',
   },
   
   divider: {
-    height: 1,
-    backgroundColor: '#ffffff20',
+    height: 2,
+    backgroundColor: '#FFD700',
     marginHorizontal: 16,
+    opacity: 0.3,
   },
 
-  // Content Styles
+  // ✅ Content Styles
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     paddingTop: 40,
-    justifyContent: 'flex-start',
   },
   messageText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '400',
-    color: '#e0e0e0',
+    color: '#ffffff',
     textAlign: 'center',
     marginBottom: 40,
     lineHeight: 24,
@@ -54,75 +59,92 @@ const OTPStyles = StyleSheet.create({
   phoneNumberHighlight: {
     color: '#FFD700',
     fontWeight: '700',
+    fontSize: 18,
   },
 
-  // OTP Input Styles
+  // ✅ OTP Input Styles (white boxes like login)
   otpInputContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 40,
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 32,
+    paddingHorizontal: 8,
   },
   otpBox: {
-    width: 50,
-    height: 60,
+    width: (width - 96) / 6,
+    height: 56,
     borderWidth: 2,
-    borderColor: '#ffffff40',
-    borderRadius: 12,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    textAlign: 'center',
     fontSize: 24,
     fontWeight: '700',
-    textAlign: 'center',
-    color: '#ffffff',
-    backgroundColor: '#ffffff08',
+    color: '#000000',
   },
   otpBoxFocused: {
     borderColor: '#FFD700',
-    backgroundColor: '#FFD70015',
+    borderWidth: 3,
+    backgroundColor: '#ffffff',
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 10,
+    elevation: 8,
   },
   otpBoxFilled: {
     borderColor: '#FFD700',
-    backgroundColor: '#FFD70020',
+    backgroundColor: '#fffef5',
+    borderWidth: 2,
   },
 
-  // Button Styles
+  // ✅ Verify Button (matching login yellow button)
+  verifyButtonShadow: {
+    position: 'absolute',
+    top: 370,
+    left: 24,
+    right: 24,
+    height: 50,
+    backgroundColor: '#FFD700',
+    borderRadius: 10,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 10,
+  },
   verifyButton: {
     backgroundColor: '#FFD700',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 6,
   },
   verifyButtonDisabled: {
-    backgroundColor: '#FFD70050',
+    backgroundColor: '#d4b86a',
     opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   verifyButtonText: {
-    color: '#000000',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: '#000000',
   },
 
-  // Resend Styles
+  // ✅ Resend Styles
   resendContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 32,
   },
   timerText: {
     fontSize: 14,
-    color: '#a0a0a0',
-    fontWeight: '400',
+    color: '#f5eeeeff',
   },
   timerHighlight: {
     color: '#FFD700',
@@ -130,8 +152,7 @@ const OTPStyles = StyleSheet.create({
   },
   resendText: {
     fontSize: 14,
-    color: '#a0a0a0',
-    textAlign: 'center',
+    color: '#f5eeeeff',
   },
   resendLink: {
     color: '#FFD700',
@@ -139,44 +160,61 @@ const OTPStyles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  // Divider Styles
+  // ✅ Divider Styles (matching login)
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 30,
+    marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: '#ffffff20',
+    height: 2,
+    backgroundColor: '#ccc',
   },
   dividerText: {
     marginHorizontal: 16,
-    fontSize: 14,
-    color: '#a0a0a0',
-    fontWeight: '500',
+    fontSize: 18,
+    color: '#f5eeeeff',
+    fontWeight: '600',
   },
 
-  // Truecaller Button Styles
+  // ✅ Truecaller Button (matching login style)
   truecallerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f1f1f1',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 10,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
+  truecallerIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 10,
+    tintColor: '#372643',
+  },
   truecallerButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#000000',
+  },
+
+  // ✅ Loading Container
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#FFD700',
+    fontWeight: '600',
   },
 });
 

@@ -12,7 +12,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle")
+        classpath('com.android.tools.build:gradle')
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
         classpath("com.google.gms:google-services:4.4.2")
@@ -21,10 +21,15 @@ buildscript {
 
 apply plugin: "com.facebook.react.rootproject"
 
+// Add this section if it doesn't exist
 allprojects {
     repositories {
         google()
         mavenCentral()
         maven { url "https://maven.truecaller.com/release/" }
+        // Zoho repo (correct)
+        maven { 
+            url "https://maven.zohodl.com" 
+        }
     }
 }

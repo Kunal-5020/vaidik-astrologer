@@ -40,11 +40,6 @@
 	<array>
 		<string>arm64</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-    <string>We need camera access for livestreaming</string>
-    
-    <key>NSMicrophoneUsageDescription</key>
-    <string>We need microphone access for livestreaming</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

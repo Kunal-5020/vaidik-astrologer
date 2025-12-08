@@ -1,408 +1,232 @@
-import { StyleSheet } from 'react-native';
+// src/style/LoginStyle.js
+
+import { StyleSheet, Dimensions } from 'react-native';
+
+const { width, height } = Dimensions.get('window');
 
 const LoginStyle = StyleSheet.create({
+  // ===== CONTAINER =====
   container: {
     flex: 1,
-    alignContent: 'center',
     backgroundColor: '#372643',
-    alignItems: 'center',
-    paddingTop: 20,
   },
+
+  // ===== LOGO CARD =====
+  card: {
+    width: width * 0.92,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 20,
+    marginBottom: 25,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    alignItems: 'center',
+  },
+
   logoContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 40,
+    justifyContent: 'center',
+    width: '100%',
   },
+
   logo: {
-    width: 350,
-    height: 180,
+    width: width * 0.65,
+    height: 110,
     resizeMode: 'contain',
-    marginRight: 5,
-    marginLeft: 45,
-    marginVertical: -55,
   },
+
   vaidik: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1E2A38',
-    alignItems: 'center',
-    marginLeft: 155,
-    marginTop: 12,
-  },
-  talk: {
-    fontSize: 28,
-    fontWeight: '400',
-    color: '#000',
-    marginLeft: 8,
-    marginTop: 1,
-  },
-  banner: {
-    width: '105%',
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginBottom: 20,
-    marginTop: -45,
-  },
-  bannerText: {
-    color: '#000',
-    fontSize: 18,
-    fontWeight: '500',
     textAlign: 'center',
+    marginTop: 8,
+    letterSpacing: 0.5,
   },
+
+  // ===== PHONE INPUT =====
   phoneContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    width: '90%',
-    marginBottom: 15,
-    backgroundColor: 'white',
-    marginTop: 16,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    width: width * 0.92,
+    backgroundColor: '#fff',
+    marginBottom: 16,
+    height: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  countryCode: {
-    fontSize: 16,
-    marginRight: 8,
-    color: 'black',
-    marginLeft: 10,
-    fontWeight: 'bold',
-  },
+
   input: {
     flex: 1,
     fontSize: 16,
     paddingVertical: 12,
-    fontWeight: 'bold',
-    marginLeft: 15,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginLeft: 10,
   },
+
+  // ===== BUTTONS =====
   otpButton: {
     backgroundColor: '#FFD700',
-    width: '90%',
-    paddingVertical: 12,
-    borderRadius: 10,
+    width: width * 0.92,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 15,
+    justifyContent: 'center',
+    marginBottom: 16,
+    height: 54,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
+
   otpText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
+    fontWeight: '700',
+    color: '#1f2937',
+    letterSpacing: 1,
   },
-  link: {
-    color: 'white',
-    textDecorationLine: 'underline',
-  },
-  orText: {
-    marginVertical: 10,
-    fontSize: 18,
-    color: '#f5eeeeff',
-  },
+
   truecallerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f1f1f1',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    width: '90%',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    width: width * 0.92,
     justifyContent: 'center',
-    marginTop: 15,
-  },
-  flagIcon: {
-    width: 23,
-    height: 23,
-    marginRight: 10,
-    backgroundColor: 'white',
+    marginTop: 12,
+    height: 54,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
 
   truecallerIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 25,
+    width: 24,
+    height: 24,
+    marginRight: 12,
     tintColor: '#372643',
   },
+
   truecallerText: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#000',
+    fontWeight: '700',
+    color: '#372643',
+    letterSpacing: 0.3,
   },
+
+  // ===== TERMS & CONDITIONS =====
   termsWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginBottom: 10,
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginBottom: 18,
+    paddingHorizontal: 24,
+    width: width * 0.92,
   },
 
   termsText: {
     fontSize: 12,
     color: '#FFD700',
+    lineHeight: 18,
   },
-  card: {
-    width: '120%',
-    height: 234,
-    backgroundColor: '#fff',
-    borderRadius: 4,
-    padding: 16,
-    marginVertical: 25,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+
+  link: {
+    color: '#FFD700',
+    textDecorationLine: 'underline',
+    fontSize: 12,
+    fontWeight: '600',
   },
+
+  // ===== DIVIDER =====
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    width: width * 0.92,
+  },
+
   line: {
-    marginTop: 23,
-    height: 2,
-    width: '45%',
-    backgroundColor: '#ccc',
-    marginRight: 12,
+    flex: 1,
+    height: 1,
+    backgroundColor: '#9ca3af',
   },
-  line1: {
-    marginTop: 23,
-    height: 2,
-    width: '45%',
-    backgroundColor: '#ccc',
-    marginLeft: 10,
+
+  orText: {
+    fontSize: 15,
+    color: '#e5e7eb',
+    marginHorizontal: 12,
+    fontWeight: '600',
   },
-  INText: {
-    color: 'black',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  skipWrapper: {
-    alignSelf: 'flex-end', // Align to right of parent
-    alignItems: 'center', // Center line under text
-    marginTop: 1, // Space from top or other content
-    marginRight: 15, // Optional: space from right edge
-  },
-  skipText: {
-    fontSize: 16,
-    color: 'grey',
-    fontWeight: '400',
-    marginTop: -8,
-  },
-  skipLine: {
-    height: 2,
-    width: 30,
-    backgroundColor: 'grey',
-    // marginTop: 1,
-    borderRadius: 1,
-    fontWeight: '300',
-  },
-  //   sign-up style ================================
+
+  // ===== NAVIGATION LINKS =====
   signupWrapper: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 160,
+    marginTop: 28,
+    marginBottom: 12,
   },
 
   signupText: {
-    color: '#fff',
+    color: '#e5e7eb',
     fontSize: 14,
+    fontWeight: '500',
   },
 
   signupLink: {
     color: '#FFD700',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 14,
     textDecorationLine: 'underline',
-    marginLeft: 4,
+  },
+
+  checkStatusButton: {
+    marginTop: 10,
+    marginBottom: 20,
+    paddingVertical: 8,
+  },
+
+  checkStatusText: {
+    textAlign: 'center',
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+
+  // ===== UTILITY STYLES =====
+  flagIcon: {
+    width: 26,
+    height: 26,
+    marginRight: 10,
+  },
+
+  countryCode: {
+    fontSize: 16,
+    color: '#1f2937',
+    fontWeight: '600',
   },
 });
+
 export default LoginStyle;
-
-// =================================================================
-
-// import { StyleSheet } from 'react-native';
-
-// const LoginStyle = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#372643',
-//     alignContent: 'center',
-//     // justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   logoContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     marginVertical: 40,
-//   },
-//   logo: {
-//     width: 140,
-//     height: 140,
-//     resizeMode: 'contain',
-//     // marginRight: 1,
-//     marginLeft: 129,
-//     marginVertical: 10,
-//   },
-//   vaidik: {
-//     fontSize: 38,
-//     fontWeight: '700',
-//     color: '#1E2A38',
-//     alignItems: 'center',
-//     marginLeft: 10,
-//     marginTop: 12,
-//   },
-//   talk: {
-//     fontSize: 38,
-//     fontWeight: '400',
-//     color: '#000',
-//     marginLeft: 8,
-//     marginTop: 12,
-//   },
-
-//   bannerText: {
-//     color: '#000',
-//     fontSize: 18,
-//     fontWeight: '500',
-//     textAlign: 'center',
-//   },
-//   phoneContainer: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     borderWidth: 2,
-//     borderColor: '#d1d5db',
-//     borderRadius: 10,
-//     paddingHorizontal: 10,
-//     width: '100%',
-//     marginBottom: 15,
-//     backgroundColor: 'white',
-//     marginTop: 16,
-//   },
-//   countryCode: {
-//     fontSize: 16,
-//     marginRight: 8,
-//     color: 'black',
-//     marginLeft: 10,
-//     fontWeight: 'bold',
-//   },
-//   input: {
-//     flex: 1,
-//     fontSize: 16,
-//     paddingVertical: 12,
-//     fontWeight: 'bold',
-//     marginLeft: 15,
-//   },
-//   otpButton: {
-//     backgroundColor: '#FFD700',
-//     width: '100%',
-//     paddingVertical: 14,
-//     borderRadius: 10,
-//     alignItems: 'center',
-//     marginBottom: 15,
-//   },
-//   otpText: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: '#000',
-//   },
-//   link: {
-//     color: 'white',
-//     textDecorationLine: 'underline',
-//   },
-//   orText: {
-//     marginVertical: 10,
-//     fontSize: 18,
-//     color: '#f5eeeeff',
-//   },
-//   truecallerButton: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     backgroundColor: '#f1f1f1',
-//     borderRadius: 10,
-//     paddingVertical: 12,
-//     paddingHorizontal: 15,
-//     width: '100%',
-//     justifyContent: 'center',
-//     marginTop: 15,
-//   },
-//   flagIcon: {
-//     width: 23,
-//     height: 23,
-//     marginRight: 10,
-//     backgroundColor: 'white',
-//   },
-
-//   truecallerIcon: {
-//     width: 20,
-//     height: 20,
-//     marginRight: 10,
-//   },
-//   truecallerText: {
-//     fontSize: 16,
-//     fontWeight: '800',
-//     color: '#000',
-//   },
-//   termsWrapper: {
-//     flexDirection: 'row',
-//     flexWrap: 'wrap',
-//     justifyContent: 'center',
-//     marginBottom: 10,
-//     paddingHorizontal: 20,
-//   },
-
-//   termsText: {
-//     fontSize: 12,
-//     color: '#FFD700',
-//   },
-//   card: {
-//     width: '120%',
-//     height: 43,
-//     backgroundColor: '#fff',
-//     borderRadius: 4,
-//     padding: 16,
-//     marginVertical: 25,
-//     elevation: 4,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 4,
-//     // marginBottom: 20,
-//   },
-//   line: {
-//     marginTop: 23,
-//     height: 2,
-//     width: '45%',
-//     backgroundColor: '#ccc',
-//     marginRight: 12,
-//   },
-//   line1: {
-//     marginTop: 23,
-//     height: 2,
-//     width: '45%',
-//     backgroundColor: '#ccc',
-//     marginLeft: 10,
-//   },
-//   INText: {
-//     color: 'black',
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//   },
-//   skipWrapper: {
-//     alignSelf: 'flex-end', // Align to right of parent
-//     alignItems: 'center', // Center line under text
-//     marginTop: 1, // Space from top or other content
-//     marginRight: 15, // Optional: space from right edge
-//   },
-//   skipText: {
-//     fontSize: 16,
-//     color: 'grey',
-//     fontWeight: '400',
-//     marginTop: -8,
-//   },
-//   skipLine: {
-//     height: 2,
-//     width: 30,
-//     backgroundColor: 'grey',
-//     marginTop: 1,
-//     borderRadius: 1,
-//     fontWeight: '300',
-//   },
-// });
-// export default LoginStyle;

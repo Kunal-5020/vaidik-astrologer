@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// src/screens/main_screens/EditProfileScreen.js
+
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,354 +10,439 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Platform,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import ProfileImageModal from '../../component/ProfileImageModal';
-import CustomToast from '../../component/CustomToast';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
+// Custom Components
+import ProfileImageModal from '../../component/ProfileImageModal';
+import CustomToast from '../../component/CustomToast';
 import {
   requestCameraPermission,
   requestGalleryPermission,
 } from '../../component/AppPermission';
 
+// Services & Context
+import { useAuth } from '../../contexts/AuthContext';
+import { astrologerService } from '../../services/api/astrologer.service';
+
+const { width } = Dimensions.get('window');
+
 const EditProfileScreen = ({ navigation }) => {
+  // ✅ ALL HOOKS AT THE TOP - BEFORE ANY CONDITIONAL RENDERING
+  const { state, updateAstrologer } = useAuth();
+  const { astrologer } = state;
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
-  const [showDOBPicker, setShowDOBPicker] = useState(false);
-  const [dob, setDob] = useState(new Date('1990-05-15')); // default DOB
-
-  // form state
   const [form, setForm] = useState({
     profilePic: null,
-    name: 'Maya Sharma',
-    email: 'maya.sharma@example.com',
-    phone: '+91 9876543210',
-    dob: '05/15/1990',
-    experience: '10',
-    qualification: 'PhD in Astrology, Certified Tarot Reader',
-    certification: 'International Astrology Federation',
+    name: '',
+    email: '',
+    phone: '',
+    gender: '',
+    dob: '',
+    experience: '',
     specializations: {
-      vedic: true,
-      tarot: true,
-      numerology: true,
-      palmistry: false,
+      'Vedic Astrology': false,
+      'Tarot': false,
+      'Numerology': false,
+      'Palmistry': false,
+      'Vastu': false,
     },
     languages: {
-      english: true,
-      hindi: false,
-      french: false,
+      'English': false,
+      'Hindi': false,
+      'Gujarati': false,
+      'Marathi': false,
     },
     professionalBio: '',
-    chatRate: '',
-    audioRate: '',
   });
 
-  // When user selects date
-  const onDOBChange = (event, selectedDate) => {
-    setShowDOBPicker(false);
-    if (selectedDate) {
-      setDob(selectedDate);
-      // Format date as mm/dd/yyyy
-      const formatted = `${
-        selectedDate.getMonth() + 1
-      }/${selectedDate.getDate()}/${selectedDate.getFullYear()}`;
-      updateField('dob', formatted);
-    }
-  };
+  const showCustomToast = useCallback((message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
+  }, []);
 
-  // update field
-  const updateField = (key, value) => {
+  const updateField = useCallback((key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
-  // toggle checkboxes
-  const toggleCheckbox = (category, key) => {
+  const toggleCheckbox = useCallback((category, key) => {
     setForm(prev => ({
       ...prev,
       [category]: { ...prev[category], [key]: !prev[category][key] },
     }));
-  };
+  }, []);
 
-  // show toast
-  const showCustomToast = message => {
-    setToastMessage(message);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
-  };
-
-  // camera & gallery
-  const openCamera = async () => {
+  const openCamera = useCallback(async () => {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
       showCustomToast('Camera permission denied');
       return;
     }
     launchCamera(
-      { mediaType: 'photo', cameraType: 'front', saveToPhotos: true },
+      { mediaType: 'photo', cameraType: 'front', quality: 0.5 },
       response => {
-        if (response.didCancel) return;
-        if (response.errorCode) {
-          showCustomToast('Camera error: ' + response.errorMessage);
-          return;
-        }
         if (response.assets?.[0]) {
-          updateField('profilePic', response.assets[0]);
+          setForm(prev => ({ ...prev, profilePic: response.assets[0] }));
           setShowImageModal(false);
         }
-      },
+      }
     );
-  };
+  }, [showCustomToast]);
 
-  const openGallery = async () => {
+  const openGallery = useCallback(async () => {
     const hasPermission = await requestGalleryPermission();
     if (!hasPermission) {
       showCustomToast('Gallery permission denied');
       return;
     }
-    launchImageLibrary({ mediaType: 'photo' }, response => {
-      if (response.didCancel) return;
-      if (response.errorCode) {
-        showCustomToast('Gallery error: ' + response.errorMessage);
-        return;
-      }
+    launchImageLibrary({ mediaType: 'photo', quality: 0.5 }, response => {
       if (response.assets?.[0]) {
-        updateField('profilePic', response.assets[0]);
+        setForm(prev => ({ ...prev, profilePic: response.assets[0] }));
         setShowImageModal(false);
       }
     });
-  };
+  }, [showCustomToast]);
 
-  // handle bio length
-  const handleBioChange = text => {
-    if (text.length > 250) {
-      Alert.alert(
-        'Validation',
-        'Professional Bio cannot exceed 250 characters',
-      );
+  const handleSave = useCallback(async () => {
+    if (!form.name) {
+      Alert.alert('Error', 'Name is required');
       return;
     }
-    updateField('professionalBio', text);
-  };
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Image
-            source={require('../../assets/back.png')}
-            style={styles.leftIcon}
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>Profile</Text>
-      </View>
+    try {
+      setSaving(true);
 
-      <View style={styles.line} />
+      const selectedSpecializations = Object.keys(form.specializations)
+        .filter(key => form.specializations[key]);
 
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Profile Image */}
-        <View style={styles.profileWrapper}>
-          <View style={styles.profileContainer}>
-            <Image
-              source={
-                form.profilePic
-                  ? { uri: form.profilePic.uri }
-                  : require('../../assets/man.png')
-              }
-              style={styles.profileImage}
-            />
-          </View>
+      const selectedLanguages = Object.keys(form.languages)
+        .filter(key => form.languages[key]);
 
-          <TouchableOpacity
-            style={styles.cameraContainer}
-            onPress={() => setShowImageModal(true)}
-            activeOpacity={0.8}
-          >
-            <Image
-              source={require('../../assets/camera.png')}
-              style={styles.cameraIcon}
-            />
-          </TouchableOpacity>
-        </View>
+      const updateData = {
+        name: form.name,
+        bio: form.professionalBio,
+        experienceYears: parseInt(form.experience) || 0,
+        specializations: selectedSpecializations,
+        languages: selectedLanguages,
+      };
 
-        {/* Personal Information */}
-        <Text style={styles.sectionTitle}>Personal Information</Text>
+      const response = await astrologerService.updateProfile(updateData);
 
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          style={styles.inputField}
-          value={form.name}
-          onChangeText={text => updateField('name', text)}
-        />
+      if (response.success) {
+        if (updateAstrologer) {
+          await updateAstrologer({
+            ...astrologer,
+            ...updateData,
+          });
+        }
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.inputField}
-          value={form.email}
-          onChangeText={text => updateField('email', text)}
-          keyboardType="email-address"
-        />
+        showCustomToast('Profile updated successfully!');
+        setTimeout(() => navigation.goBack(), 1500);
+      } else {
+        throw new Error(response.message || 'Update failed');
+      }
+    } catch (error) {
+      console.error('❌ [EditProfile] Error:', error);
+      
+      if (error.message && Array.isArray(error.message)) {
+        Alert.alert('Validation Error', error.message.join('\n'));
+      } else {
+        Alert.alert('Error', error.message || 'Failed to update profile');
+      }
+    } finally {
+      setSaving(false);
+    }
+  }, [form, astrologer, updateAstrologer, navigation, showCustomToast]);
 
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput
-          style={styles.inputField}
-          value={form.phone}
-          onChangeText={text => updateField('phone', text)}
-          keyboardType="phone-pad"
-        />
+  useEffect(() => {
+    const loadCompleteProfile = async () => {
+      try {
+        const response = await astrologerService.getCompleteProfile();
 
-        <Text style={styles.label}>Date of Birth</Text>
+        if (response.success && response.data) {
+          const profile = response.data;
 
-        <TouchableOpacity
-          style={styles.dobInputContainer}
-          onPress={() => setShowDOBPicker(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={{ color: form.dob ? '#000' : '#999', fontSize: 15 }}>
-            {form.dob || 'Select Date of Birth'}
-          </Text>
-          <Ionicons name="calendar-outline" size={22} color="#372643" />
-        </TouchableOpacity>
+          if (updateAstrologer) {
+            await updateAstrologer(profile);
+          }
 
-        {showDOBPicker && (
-          <DateTimePicker
-            value={dob}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            maximumDate={new Date()}
-            onChange={onDOBChange}
-          />
-        )}
+          const specs = {
+            'Vedic Astrology': false,
+            'Tarot': false,
+            'Numerology': false,
+            'Palmistry': false,
+            'Vastu': false,
+          };
 
-        {/* Professional Details */}
-        <Text style={styles.sectionTitle}>Professional Details</Text>
-
-        <Text style={styles.label}>Years of Experience</Text>
-        <TextInput
-          style={styles.inputField}
-          value={form.experience}
-          onChangeText={text => updateField('experience', text)}
-          keyboardType="numeric"
-        />
-
-        <Text style={styles.label}>Qualifications</Text>
-        <TextInput
-          style={styles.inputField}
-          value={form.qualification}
-          onChangeText={text => updateField('qualification', text)}
-        />
-
-        <Text style={styles.label}>Certifications</Text>
-        <TextInput
-          style={styles.inputField}
-          value={form.certification}
-          onChangeText={text => updateField('certification', text)}
-        />
-
-        {/* Specializations */}
-        <Text style={styles.label}>Specializations</Text>
-        {Object.keys(form.specializations).map(key => (
-          <View style={styles.checkboxRow} key={key}>
-            <TouchableOpacity
-              onPress={() => toggleCheckbox('specializations', key)}
-            >
-              <View
-                style={
-                  form.specializations[key] ? styles.checked : styles.unchecked
+          if (profile.specializations && Array.isArray(profile.specializations)) {
+            profile.specializations.forEach(s => {
+              Object.keys(specs).forEach(key => {
+                if (key.toLowerCase() === s.toLowerCase()) {
+                  specs[key] = true;
                 }
-              />
-            </TouchableOpacity>
-            <Text style={styles.checkboxLabel}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}
-            </Text>
-          </View>
-        ))}
+              });
+            });
+          }
 
-        {/* Languages */}
-        <Text style={styles.label}>Languages</Text>
-        {Object.keys(form.languages).map(key => (
-          <View style={styles.checkboxRow} key={key}>
-            <TouchableOpacity onPress={() => toggleCheckbox('languages', key)}>
-              <View
-                style={form.languages[key] ? styles.checked : styles.unchecked}
-              />
-            </TouchableOpacity>
-            <Text style={styles.checkboxLabel}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}
-            </Text>
-          </View>
-        ))}
+          const langs = {
+            'English': false,
+            'Hindi': false,
+            'Gujarati': false,
+            'Marathi': false,
+          };
 
-        {/* Professional Bio */}
-        <Text style={styles.label}>Professional Bio (max 250 chars)</Text>
-        <TextInput
-          style={[styles.inputField, { height: 100 }]}
-          multiline
-          maxLength={250}
-          value={form.professionalBio}
-          onChangeText={handleBioChange}
-        />
+          if (profile.languages && Array.isArray(profile.languages)) {
+            profile.languages.forEach(l => {
+              Object.keys(langs).forEach(key => {
+                if (key.toLowerCase() === l.toLowerCase()) {
+                  langs[key] = true;
+                }
+              });
+            });
+          }
 
-        {/* Pricing */}
-        <Text style={styles.label}>Pricing</Text>
-        <Text style={styles.label}>Chat Rate (per minute)</Text>
-        <TextInput
-          style={styles.inputField}
-          placeholder="Enter rate"
-          value={form.chatRate}
-          onChangeText={text => updateField('chatRate', text)}
-          keyboardType="numeric"
-        />
-        <Text style={styles.label}>Audio Call Rate (per minute)</Text>
-        <TextInput
-          style={styles.inputField}
-          placeholder="Enter Rate"
-          value={form.audioRate}
-          onChangeText={text => updateField('audioRate', text)}
-          keyboardType="numeric"
-        />
-        <Text style={styles.label}>Video Call Rate (per minute)</Text>
-        <TextInput
-          style={styles.inputField}
-          placeholder="Audio Call Rate"
-          value={form.audioRate}
-          onChangeText={text => updateField('audioRate', text)}
-          keyboardType="numeric"
-        />
+          let formattedDOB = '';
+          if (profile.dateOfBirth) {
+            const dobDateObj = new Date(profile.dateOfBirth);
+            formattedDOB = dobDateObj.toLocaleDateString('en-US');
+          }
 
-        <View style={styles.buttonContainer}>
-          {/* Cancel Button */}
-          <TouchableOpacity style={styles.cancelButton}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
+          setForm({
+            profilePic: profile.profilePicture
+              ? { uri: profile.profilePicture }
+              : null,
+            name: profile.name || '',
+            email: profile.email || '',
+            phone: profile.phoneNumber || '',
+            gender: profile.gender || '',
+            dob: formattedDOB,
+            experience: profile.experienceYears !== undefined
+              ? String(profile.experienceYears)
+              : '',
+            specializations: specs,
+            languages: langs,
+            professionalBio: profile.bio || '',
+          });
+        }
 
-          {/* Save Changes Button */}
-          <TouchableOpacity style={styles.saveButton}>
-            <Text style={styles.saveText}>Save Changes</Text>
-          </TouchableOpacity>
+        setLoading(false);
+      } catch (error) {
+        console.error('❌ [EditProfile] Error:', error);
+        setLoading(false);
+      }
+    };
+
+    loadCompleteProfile();
+  }, [updateAstrologer]);
+
+  // ✅ NOW SAFE TO RENDER CONDITIONALLY
+  return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#372643" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
-      </ScrollView>
+      ) : (
+        <>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Profile Image */}
+            <View style={styles.profileWrapper}>
+              <View style={styles.profileContainer}>
+                <Image
+                  source={
+                    form.profilePic?.uri
+                      ? { uri: form.profilePic.uri }
+                      : require('../../assets/man.png')
+                  }
+                  style={styles.profileImage}
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.cameraContainer}
+                onPress={() => setShowImageModal(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="camera" size={18} color="#372643" />
+              </TouchableOpacity>
+            </View>
 
-      {/* Modals */}
-      <ProfileImageModal
-        visible={showImageModal}
-        onClose={() => setShowImageModal(false)}
-        onTakePhoto={openCamera}
-        onChooseGallery={openGallery}
-        onRemovePhoto={() => {
-          updateField('profilePic', null);
-          setShowImageModal(false);
-        }}
-        hasPhoto={!!form.profilePic}
-      />
+            {/* Personal Information */}
+            <Text style={styles.sectionTitle}>Personal Information</Text>
 
-      {/* Toast */}
-      {showToast && <CustomToast message={toastMessage} />}
-    </View>
+            <View style={styles.section}>
+              <Text style={styles.label}>Full Name *</Text>
+              <TextInput
+                style={styles.inputField}
+                value={form.name}
+                onChangeText={text => updateField('name', text)}
+                placeholder="Enter your full name"
+                placeholderTextColor="#999"
+              />
+
+              <Text style={styles.label}>Email Address</Text>
+              <View style={styles.readOnlyContainer}>
+                <Text style={styles.readOnlyText} numberOfLines={1}>
+                  {form.email || 'Not Available'}
+                </Text>
+                <Ionicons name="mail-outline" size={18} color="#666" />
+              </View>
+
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={styles.readOnlyContainer}>
+                <Text style={styles.readOnlyText}>
+                  {form.phone || 'Not Available'}
+                </Text>
+                <Ionicons name="call-outline" size={18} color="#666" />
+              </View>
+
+              <Text style={styles.label}>Gender</Text>
+              <View style={styles.readOnlyContainer}>
+                <Text style={styles.readOnlyText}>
+                  {form.gender
+                    ? form.gender.charAt(0).toUpperCase() + form.gender.slice(1)
+                    : 'Not Specified'}
+                </Text>
+                <Ionicons name="person-outline" size={18} color="#666" />
+              </View>
+
+              <Text style={styles.label}>Date of Birth</Text>
+              <View style={styles.readOnlyContainer}>
+                <Text style={styles.readOnlyText}>{form.dob || 'Not Set'}</Text>
+                <Ionicons name="calendar-outline" size={18} color="#666" />
+              </View>
+            </View>
+
+            {/* Professional Details */}
+            <Text style={styles.sectionTitle}>Professional Details</Text>
+
+            <View style={styles.section}>
+              <Text style={styles.label}>Years of Experience</Text>
+              <TextInput
+                style={styles.inputField}
+                value={form.experience}
+                onChangeText={text => updateField('experience', text)}
+                keyboardType="numeric"
+                placeholder="e.g. 5"
+                placeholderTextColor="#999"
+              />
+
+              <Text style={styles.label}>Specializations</Text>
+              <View style={styles.checkboxContainer}>
+                {Object.keys(form.specializations).map(key => (
+                  <TouchableOpacity
+                    key={key}
+                    style={styles.checkboxRow}
+                    onPress={() => toggleCheckbox('specializations', key)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={
+                        form.specializations[key] ? styles.checked : styles.unchecked
+                      }
+                    >
+                      {form.specializations[key] && (
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                      )}
+                    </View>
+                    <Text style={styles.checkboxLabel}>{key}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Languages</Text>
+              <View style={styles.checkboxGrid}>
+                {Object.keys(form.languages).map(key => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.checkboxRow, styles.halfWidth]}
+                    onPress={() => toggleCheckbox('languages', key)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={form.languages[key] ? styles.checked : styles.unchecked}
+                    >
+                      {form.languages[key] && (
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                      )}
+                    </View>
+                    <Text style={styles.checkboxLabel}>{key}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Professional Bio</Text>
+              <TextInput
+                style={[styles.inputField, styles.bioInput]}
+                multiline
+                maxLength={500}
+                value={form.professionalBio}
+                onChangeText={text => updateField('professionalBio', text)}
+                placeholder="Tell us about your expertise..."
+                placeholderTextColor="#999"
+                textAlignVertical="top"
+              />
+              <Text style={styles.charCount}>
+                {form.professionalBio.length}/500
+              </Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                onPress={handleSave}
+                disabled={saving}
+                activeOpacity={0.8}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.saveText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ height: 24 }} />
+          </ScrollView>
+
+          <ProfileImageModal
+            visible={showImageModal}
+            onClose={() => setShowImageModal(false)}
+            onTakePhoto={openCamera}
+            onChooseGallery={openGallery}
+            onRemovePhoto={() => {
+              setForm(prev => ({ ...prev, profilePic: null }));
+              setShowImageModal(false);
+            }}
+            hasPhoto={!!form.profilePic}
+          />
+
+          {showToast && <CustomToast message={toastMessage} />}
+        </>
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -364,198 +451,201 @@ export default EditProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'android' ? 0 : 0, // iOS SafeAreaView handles top inset
+    backgroundColor: '#F5F6FA',
   },
-
-  headerContainer: {
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    height: Platform.OS === 'ios' ? 60 : 55,
-    backgroundColor: '#372643',
-    paddingHorizontal: '5%',
   },
-
-  leftIcon: {
-    width: 22,
-    height: 22,
-    tintColor: '#fff',
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
   },
-
-  headerText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-    marginLeft: 20,
+  scroll: {
+    paddingHorizontal: Math.min(width * 0.05, 20),
+    paddingTop: 16,
+    paddingBottom: 24,
   },
-
-  line: {
-    height: 1,
-    backgroundColor: '#ccc',
-    width: '100%',
-  },
-
   profileWrapper: {
     alignItems: 'center',
-    marginTop: 10,
+    marginBottom: 24,
   },
-
   profileContainer: {
-    width: '38%',
-    aspectRatio: 1,
-    borderRadius: 100,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     borderWidth: 3,
     borderColor: '#372643',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    backgroundColor: '#E8EAF6',
   },
-
   profileImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-
   cameraContainer: {
     position: 'absolute',
-    bottom: 15,
-    right: '32%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: Platform.OS === 'ios' ? 5 : 6,
-    elevation: Platform.OS === 'android' ? 3 : 0,
+    bottom: 0,
+    right: width < 360 ? '32%' : '36%',
+    backgroundColor: '#FFF',
+    borderRadius: 18,
+    padding: 8,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: Platform.OS === 'ios' ? 0.3 : 0.15,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: '#372643',
   },
-
-  cameraIcon: {
-    width: 22,
-    height: 22,
-    tintColor: '#000',
-  },
-
-  scroll: {
-    paddingHorizontal: '5%',
-    paddingBottom: Platform.OS === 'ios' ? 80 : 60,
-  },
-
   sectionTitle: {
-    color: 'grey',
-    marginTop: 18,
-    marginBottom: 9,
-    fontSize: 17,
-    fontWeight: 'bold',
+    color: '#372643',
+    marginTop: 20,
+    marginBottom: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    borderBottomWidth: 2,
+    borderBottomColor: '#372643',
+    paddingBottom: 6,
   },
-
+  section: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
   label: {
-    color: '#000',
-    fontSize: 15,
-    marginTop: 14,
-    marginBottom: 3,
-    fontWeight: 'bold',
-  },
-
-  inputField: {
-    backgroundColor: '#F3F3F3',
-    borderRadius: 10,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    paddingHorizontal: '4%',
-    fontSize: 15,
     color: '#333',
-    marginBottom: 8,
-    width: '100%',
+    fontSize: 13,
+    marginTop: 12,
+    marginBottom: 6,
+    fontWeight: '600',
   },
-
+  inputField: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: '#333',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  readOnlyContainer: {
+    backgroundColor: '#F0F0F0',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+  },
+  readOnlyText: {
+    fontSize: 14,
+    color: '#555',
+    fontWeight: '500',
+    flex: 1,
+  },
+  checkboxContainer: {
+    marginTop: 8,
+  },
+  checkboxGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
+    marginBottom: 4,
   },
-
+  halfWidth: {
+    width: '50%',
+  },
   checked: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    backgroundColor: '#6C63FF',
-    marginRight: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: '#372643',
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
   unchecked: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#6C63FF',
-    marginRight: 8,
+    borderColor: '#372643',
+    marginRight: 10,
   },
-
   checkboxLabel: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#333',
-    flexShrink: 1,
+    fontWeight: '500',
   },
-
+  bioInput: {
+    height: 100,
+    paddingTop: 12,
+  },
+  charCount: {
+    alignSelf: 'flex-end',
+    color: '#999',
+    fontSize: 11,
+    marginTop: 4,
+  },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginTop: 24,
-    paddingHorizontal: '5%',
-    width: '100%',
+    gap: 12,
   },
-
   cancelButton: {
     flex: 1,
-    backgroundColor: '#E0E0E0',
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    borderRadius: 12,
-    marginRight: '3%',
+    backgroundColor: '#FFF',
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: Platform.OS === 'android' ? 2 : 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: Platform.OS === 'ios' ? 0.15 : 0.1,
-    shadowRadius: 3,
+    borderWidth: 1.5,
+    borderColor: '#372643',
   },
-
   cancelText: {
-    color: '#000',
-    fontSize: 16,
+    color: '#372643',
+    fontSize: 15,
     fontWeight: '600',
   },
-
   saveButton: {
     flex: 1,
-    backgroundColor: '#FF9933', // Bhagwa color
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    borderRadius: 12,
+    backgroundColor: '#372643',
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: Platform.OS === 'android' ? 3 : 0,
-    shadowColor: '#FF9933',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: Platform.OS === 'ios' ? 0.3 : 0.2,
+    shadowColor: '#372643',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
     shadowRadius: 4,
+    elevation: 3,
   },
-
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
+  },
   saveText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-  },
-  dobInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F3F3F3',
-    borderRadius: 10,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    paddingHorizontal: '5%',
-    marginBottom: 8,
-    width: '100%',
   },
 });

@@ -1,9 +1,10 @@
+// src/services/auth/astrologer-auth.service.js
 import { apiClient } from './axios.instance';
 import { API_ENDPOINTS } from '../../config/api.config';
 import { STORAGE_KEYS } from '../../config/constants';
 import messaging from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import DeviceInfo from 'react-native-device-info';
 
 class AstrologerAuthService {
   constructor() {
@@ -29,6 +30,34 @@ class AstrologerAuthService {
     }
 
     return data.error || error.message || 'Authentication failed';
+  }
+
+  /**
+   * Get device information for registration
+   */
+  async getDeviceInfo() {
+    try {
+      const [fcmToken, deviceId, deviceName] = await Promise.all([
+        AsyncStorage.getItem('fcmToken'),
+        DeviceInfo.getUniqueId(),
+        DeviceInfo.getDeviceName(),
+      ]);
+
+      return {
+        fcmToken: fcmToken || 'unknown',
+        deviceId: deviceId || 'unknown',
+        deviceType: 'phone',
+        deviceName: deviceName || 'unknown',
+      };
+    } catch (error) {
+      console.error('❌ [AstrologerAuth] Failed to get device info:', error);
+      return {
+        fcmToken: 'unknown',
+        deviceId: 'unknown',
+        deviceType: 'phone',
+        deviceName: 'unknown',
+      };
+    }
   }
 
   /**
@@ -68,28 +97,27 @@ class AstrologerAuthService {
   }
 
   /**
-   * ✅ FIXED: Verify OTP and login astrologer (WITH CORRECT STORAGE KEYS)
+   * ✅ FIXED: Verify OTP and login astrologer
    */
   async verifyLoginOtp(data) {
     try {
+      // Get device info
+      const deviceInfo = await this.getDeviceInfo();
+
       console.log('📤 [AstrologerAuth] Verifying OTP with device info:', {
         phoneNumber: data.phoneNumber,
         otp: '****',
-        fcmToken: data.fcmToken ? `${data.fcmToken.substring(0, 15)}...` : 'null',
-        deviceId: data.deviceId,
-        deviceType: data.deviceType,
-        deviceName: data.deviceName,
+        fcmToken: deviceInfo.fcmToken ? `${deviceInfo.fcmToken.substring(0, 15)}...` : 'null',
+        deviceId: deviceInfo.deviceId,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
       });
 
-      // ✅ CRITICAL: Send device info with OTP verification
       const response = await apiClient.post(API_ENDPOINTS.ASTROLOGER_VERIFY_LOGIN, {
         phoneNumber: data.phoneNumber,
         countryCode: data.countryCode,
         otp: data.otp,
-        fcmToken: data.fcmToken || 'unknown',
-        deviceId: data.deviceId || 'unknown',
-        deviceType: data.deviceType || 'phone',
-        deviceName: data.deviceName || 'unknown',
+        ...deviceInfo,
       });
       
       console.log('✅ [AstrologerAuth] OTP verified successfully');
@@ -104,7 +132,10 @@ class AstrologerAuthService {
         throw new Error('Server did not return authentication tokens');
       }
 
-      // ✅ FIXED: Use STORAGE_KEYS constants (not plain strings!)
+      if (!user || !astrologer) {
+        throw new Error('Server did not return user or astrologer data');
+      }
+
       console.log('💾 [AstrologerAuth] Saving tokens with correct storage keys...');
       
       await Promise.all([
@@ -125,6 +156,76 @@ class AstrologerAuthService {
   }
 
   /**
+   * ✅ FIXED: Verify Truecaller OAuth
+   */
+  async verifyTruecaller(truecallerData) {
+    try {
+      // Get device info
+      const deviceInfo = await this.getDeviceInfo();
+
+      console.log('📤 [AstrologerAuth] Logging in with Truecaller:', {
+        authorizationCode: truecallerData.authorizationCode ? 'present' : 'missing',
+        codeVerifier: truecallerData.codeVerifier ? 'present' : 'missing',
+        fcmToken: deviceInfo.fcmToken ? `${deviceInfo.fcmToken.substring(0, 15)}...` : 'null',
+        deviceId: deviceInfo.deviceId,
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.deviceName,
+      });
+
+      const response = await apiClient.post(API_ENDPOINTS.ASTROLOGER_TRUECALLER_LOGIN, {
+        authorizationCode: truecallerData.authorizationCode,
+        codeVerifier: truecallerData.codeVerifier,
+        ...deviceInfo,
+      });
+
+      console.log('📥 [AstrologerAuth] Truecaller response:', {
+        success: response.data.success,
+        canLogin: response.data.data?.canLogin,
+        hasTokens: !!response.data.data?.tokens,
+        hasUser: !!response.data.data?.user,
+        hasAstrologer: !!response.data.data?.astrologer,
+      });
+
+      if (response.data.success) {
+        // Check if astrologer account exists
+        if (response.data.data.canLogin === false) {
+          // No astrologer account
+          console.log('⚠️ [AstrologerAuth] No astrologer account found');
+          return response.data;
+        }
+
+        // Astrologer exists - save tokens
+        const { tokens, user, astrologer } = response.data.data;
+
+        if (!tokens?.accessToken || !tokens?.refreshToken) {
+          throw new Error('Server did not return authentication tokens');
+        }
+
+        if (!user || !astrologer) {
+          throw new Error('Server did not return user or astrologer data');
+        }
+      
+        await Promise.all([
+          AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken),
+          AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken),
+          AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user)),
+          AsyncStorage.setItem(STORAGE_KEYS.ASTROLOGER_DATA, JSON.stringify(astrologer)),
+        ]);
+
+        console.log('✅ [AstrologerAuth] Truecaller login data saved');
+
+        return response.data;
+      } else {
+        throw new Error('Truecaller login failed');
+      }
+    } catch (error) {
+      console.error('❌ [AstrologerAuth] Truecaller Login Failed:', error.response?.data);
+      error.formattedMessage = this.extractErrorMessage(error);
+      throw error;
+    }
+  }
+
+  /**
    * Refresh astrologer token
    */
   async refreshToken(refreshToken) {
@@ -137,7 +238,6 @@ class AstrologerAuthService {
       
       console.log('✅ [AstrologerAuth] Token refreshed successfully');
       
-      // ✅ Save new access token with correct key
       if (response.data?.data?.accessToken) {
         await AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, response.data.data.accessToken);
       }
@@ -151,16 +251,19 @@ class AstrologerAuthService {
   }
 
   /**
-   * Logout astrologer (UNREGISTER DEVICE)
+   * Logout astrologer
    */
   async logout() {
     try {
       console.log('🚪 [AstrologerAuth] Logging out astrologer');
 
-      // Optionally unregister device from backend
-      await apiClient.post(API_ENDPOINTS.ASTROLOGER_LOGOUT);
+      // Get device ID before logout
+      const deviceId = await DeviceInfo.getUniqueId();
+
+      await apiClient.post(API_ENDPOINTS.ASTROLOGER_LOGOUT, {
+        deviceId,
+      });
       
-      // Clear local storage using STORAGE_KEYS
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
@@ -191,17 +294,15 @@ class AstrologerAuthService {
   }
 
   /**
-   * ✅ Setup FCM Token (GET & STORE) - WITH ACTIVITY DELAY
+   * ✅ Setup FCM Token - WITH ACTIVITY DELAY
    */
   async setupFCMToken() {
     try {
       console.log('🎫 [AstrologerAuth] Getting FCM token...');
       
-      // ✅ CRITICAL: Wait for Activity to attach (500ms is usually enough)
       await new Promise(resolve => setTimeout(resolve, 500));
       console.log('⏳ [AstrologerAuth] Activity attachment delay complete');
       
-      // Step 1: Request permission
       const authStatus = await messaging().requestPermission();
       const enabled =
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
@@ -212,11 +313,9 @@ class AstrologerAuthService {
         return null;
       }
 
-      // Step 2: Get FCM token
       const token = await messaging().getToken();
       console.log('✅ [AstrologerAuth] FCM Token obtained:', token ? `${token.substring(0, 20)}...` : 'NULL');
 
-      // Step 3: Store token with correct key
       if (token) {
         try {
           await AsyncStorage.setItem('fcmToken', token);
@@ -240,7 +339,6 @@ class AstrologerAuthService {
     try {
       console.log('🔄 [AstrologerAuth] Setting up FCM refresh listener...');
 
-      // Unsubscribe previous listener if exists
       if (this.fcmTokenRefreshListener) {
         this.fcmTokenRefreshListener();
       }
@@ -263,7 +361,7 @@ class AstrologerAuthService {
   }
 
   /**
-   * ✅ Cleanup (called on app unmount or logout)
+   * ✅ Cleanup
    */
   cleanup() {
     try {
@@ -280,7 +378,5 @@ class AstrologerAuthService {
   }
 }
 
-// ✅ Export singleton instance
 export const astrologerAuthService = new AstrologerAuthService();
-
 export default astrologerAuthService;

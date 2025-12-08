@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// src/screens/TabsScreen/MyStreamsScreen.js
+
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { livestreamService } from '../../services';
@@ -49,7 +52,7 @@ export default function MyStreamsScreen() {
 
       if (response.success) {
         const newStreams = response.data.streams || [];
-        
+
         if (refresh || pageNum === 1) {
           setStreams(newStreams);
         } else {
@@ -82,42 +85,6 @@ export default function MyStreamsScreen() {
     }
   };
 
-  const handleDeleteStream = (streamId, status) => {
-    if (status === 'live') {
-      Alert.alert('Cannot Delete', 'You cannot delete a live stream. Please end it first.');
-      return;
-    }
-
-    Alert.alert(
-      'Delete Stream',
-      'Are you sure you want to delete this stream?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await livestreamService.deleteStream(streamId);
-              Toast.show({
-                type: 'success',
-                text1: 'Stream deleted successfully',
-                position: 'top',
-              });
-              fetchStreams(1, true);
-            } catch (error) {
-              Toast.show({
-                type: 'error',
-                text1: 'Failed to delete stream',
-                position: 'top',
-              });
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const getStatusBadge = (status) => {
     switch (status) {
       case 'live':
@@ -137,7 +104,7 @@ export default function MyStreamsScreen() {
     if (!seconds) return '0:00';
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
@@ -162,13 +129,13 @@ export default function MyStreamsScreen() {
     return (
       <TouchableOpacity
         style={styles.streamCard}
+        activeOpacity={0.8}
         onPress={() => {
           if (item.status === 'live') {
             navigation.navigate('Go-Live', { streamId: item.streamId });
           } else if (item.status === 'ended') {
             navigation.navigate('StreamAnalytics', { streamId: item.streamId });
           } else {
-            // Show stream details
             Alert.alert(
               'Stream Details',
               `Title: ${item.title}\nStatus: ${item.status}\nCreated: ${formatDate(item.createdAt)}`,
@@ -187,7 +154,7 @@ export default function MyStreamsScreen() {
           <Text style={styles.streamTitle} numberOfLines={2}>
             {item.title}
           </Text>
-          
+
           {item.description && (
             <Text style={styles.streamDescription} numberOfLines={1}>
               {item.description}
@@ -198,7 +165,9 @@ export default function MyStreamsScreen() {
             {/* Date */}
             <View style={styles.metaItem}>
               <Icon name="calendar-today" size={14} color="#6B7280" />
-              <Text style={styles.metaText}>{formatDate(item.startedAt || item.createdAt)}</Text>
+              <Text style={styles.metaText}>
+                {formatDate(item.startedAt || item.createdAt)}
+              </Text>
             </View>
 
             {/* Duration (for ended streams) */}
@@ -237,6 +206,7 @@ export default function MyStreamsScreen() {
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate('Go-Live', { streamId: item.streamId })}
+              activeOpacity={0.8}
             >
               <Icon name="play-arrow" size={20} color="#fff" />
               <Text style={styles.actionButtonText}>Go Live</Text>
@@ -247,18 +217,10 @@ export default function MyStreamsScreen() {
             <TouchableOpacity
               style={[styles.actionButton, styles.secondaryAction]}
               onPress={() => navigation.navigate('StreamAnalytics', { streamId: item.streamId })}
+              activeOpacity={0.8}
             >
-              <Icon name="bar-chart" size={20} color="#374151" />
+              <Icon name="bar-chart" size={20} color="#372643" />
               <Text style={styles.secondaryActionText}>Analytics</Text>
-            </TouchableOpacity>
-          )}
-
-          {item.status !== 'live' && (
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDeleteStream(item.streamId, item.status)}
-            >
-              <Icon name="delete-outline" size={20} color="#ef4444" />
             </TouchableOpacity>
           )}
         </View>
@@ -278,6 +240,7 @@ export default function MyStreamsScreen() {
       <TouchableOpacity
         style={styles.goLiveButton}
         onPress={() => navigation.navigate('Home')}
+        activeOpacity={0.8}
       >
         <Text style={styles.goLiveButtonText}>Go Live Now</Text>
       </TouchableOpacity>
@@ -285,126 +248,137 @@ export default function MyStreamsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Streams</Text>
-        <TouchableOpacity onPress={handleRefresh}>
-          <Icon name="refresh" size={24} color="#111827" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        {['all', 'live', 'ended', 'scheduled'].map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterTab, filter === f && styles.filterTabActive]}
-            onPress={() => {
-              setFilter(f);
-              setPage(1);
-              setStreams([]);
-              setIsLoading(true);
-            }}
-          >
-            <Text
-              style={[
-                styles.filterTabText,
-                filter === f && styles.filterTabTextActive,
-              ]}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
+            <Icon name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Streams List */}
-      {isLoading && page === 1 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FFB300" />
+          <Text style={styles.headerTitle}>My Streams</Text>
+          <TouchableOpacity onPress={handleRefresh} activeOpacity={0.7}>
+            <Icon name="refresh" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
-      ) : (
-        <FlatList
-          data={streams}
-          renderItem={renderStreamItem}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContainer}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          ListEmptyComponent={renderEmptyState}
-          ListFooterComponent={
-            isLoading && page > 1 ? (
-              <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#FFB300" />
-              </View>
-            ) : null
-          }
-        />
-      )}
-    </View>
+
+        {/* Filter Tabs */}
+        <View style={styles.filterContainer}>
+          {['all', 'live', 'ended', 'scheduled'].map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filterTab, filter === f && styles.filterTabActive]}
+              onPress={() => {
+                setFilter(f);
+                setPage(1);
+                setStreams([]);
+                setIsLoading(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  filter === f && styles.filterTabTextActive,
+                ]}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Streams List */}
+        {isLoading && page === 1 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#372643" />
+          </View>
+        ) : (
+          <FlatList
+            data={streams}
+            renderItem={renderStreamItem}
+            keyExtractor={(item) => item._id || item.streamId}
+            contentContainerStyle={styles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                colors={['#372643']}
+                tintColor="#372643"
+              />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListEmptyComponent={renderEmptyState}
+            ListFooterComponent={
+              isLoading && page > 1 ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color="#372643" />
+                </View>
+              ) : null
+            }
+          />
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F6FA',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F5F6FA',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingVertical: 14,
+    backgroundColor: '#372643',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#FFFFFF',
   },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   filterTab: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 8,
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: '#F3F4F6',
   },
   filterTabActive: {
-    backgroundColor: '#FFB300',
+    backgroundColor: '#8B5CF6',
   },
   filterTabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#6B7280',
   },
   filterTabTextActive: {
-    color: '#fff',
+    color: '#FFFFFF',
   },
   listContainer: {
     padding: 16,
+    paddingBottom: 24,
   },
   streamCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -414,28 +388,28 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   streamInfo: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   streamTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
   },
   streamDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   streamMeta: {
     flexDirection: 'row',
@@ -444,21 +418,22 @@ const styles = StyleSheet.create({
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
     marginTop: 4,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     marginLeft: 4,
   },
   streamStats: {
     flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+    marginTop: 4,
   },
   statItem: {
     flexDirection: 'row',
@@ -466,7 +441,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   statValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#111827',
     marginLeft: 4,
@@ -474,34 +449,34 @@ const styles = StyleSheet.create({
   streamActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 10,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFB300',
-    paddingHorizontal: 16,
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
     marginRight: 8,
   },
   actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '600',
     marginLeft: 4,
   },
   secondaryAction: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#EDE9FE',
   },
   secondaryActionText: {
-    color: '#374151',
-    fontSize: 14,
+    color: '#372643',
+    fontSize: 13,
     fontWeight: '600',
     marginLeft: 4,
   },
   deleteButton: {
-    padding: 8,
+    padding: 6,
     marginLeft: 'auto',
   },
   loadingContainer: {
@@ -510,7 +485,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerLoader: {
-    paddingVertical: 20,
+    paddingVertical: 16,
     alignItems: 'center',
   },
   emptyState: {
@@ -520,28 +495,28 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#111827',
     marginTop: 16,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
     marginTop: 8,
     textAlign: 'center',
     paddingHorizontal: 32,
   },
   goLiveButton: {
-    backgroundColor: '#FFB300',
+    backgroundColor: '#8B5CF6',
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
-    marginTop: 24,
+    marginTop: 20,
   },
   goLiveButtonText: {
-    color: '#fff',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '600',
   },
 });

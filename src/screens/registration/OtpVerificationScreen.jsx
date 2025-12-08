@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,58 +9,138 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Vibration,
 } from 'react-native';
 import { useRegistration } from '../../contexts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const INITIAL_TIMER = 30;
+const OTP_LENGTH = 6;
+const DEV_MODE = __DEV__; // Only log in development
+
 export default function OtpVerificationScreen({ navigation }) {
   const { verifyOtp, sendOtp, state } = useRegistration();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [timer, setTimer] = useState(30);
-  const [canResend, setCanResend] = useState(false);
+  const [timer, setTimer] = useState(INITIAL_TIMER);
   const [isVerifying, setIsVerifying] = useState(false);
+  
   const inputRefs = useRef([]);
   const verificationAttempted = useRef(false);
+  const timerRef = useRef(null);
 
+  // Memoized values to prevent unnecessary re-renders
+  const otpComplete = useMemo(() => otp.every(digit => digit !== ''), [otp]);
+  const otpCode = useMemo(() => otp.join(''), [otp]);
+  const canResend = useMemo(() => timer === 0, [timer]);
+  const isButtonDisabled = useMemo(() => isVerifying || !otpComplete, [isVerifying, otpComplete]);
+
+  // Optimized timer with cleanup
   useEffect(() => {
     if (timer > 0) {
-      const interval = setInterval(() => {
-        setTimer(prev => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    } else {
-      setCanResend(true);
+      timerRef.current = setTimeout(() => setTimer(prev => prev - 1), 1000);
     }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [timer]);
 
-  const handleOtpChange = (value, index) => {
-    if (value.length > 1) return;
-    
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
+  // Auto-verify when OTP is complete
+  useEffect(() => {
+    if (otpComplete && !isVerifying && !verificationAttempted.current) {
+      // Small delay for better UX
+      const autoVerifyTimer = setTimeout(() => {
+        handleVerifyOtp();
+      }, 300);
+      return () => clearTimeout(autoVerifyTimer);
+    }
+  }, [otpComplete, isVerifying]);
 
-    if (value && index < 5) {
+  // Optimized OTP change handler with useCallback
+  const handleOtpChange = useCallback((value, index) => {
+    if (!/^\d*$/.test(value)) return; // Only allow digits
+    
+    setOtp(prev => {
+      const newOtp = [...prev];
+      newOtp[index] = value;
+      return newOtp;
+    });
+
+    if (value && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
-  };
 
-  const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+    // Haptic feedback on input
+    if (value) Vibration.vibrate(10);
+  }, []);
+
+  // Optimized backspace handler
+  const handleKeyPress = useCallback((e, index) => {
+    if (e.nativeEvent.key === 'Backspace') {
+      if (!otp[index] && index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      }
+      Vibration.vibrate(10);
     }
-  };
+  }, [otp]);
 
-  const handleVerifyOtp = async () => {
-    const otpCode = otp.join('');
-    
-    if (otpCode.length !== 6) {
+  // Save existing ticket to AsyncStorage
+  const saveExistingTicket = useCallback(async (ticketNumber) => {
+    try {
+      await AsyncStorage.setItem('@vaidik_ticket_number', ticketNumber);
+      if (DEV_MODE) {
+        const saved = await AsyncStorage.getItem('@vaidik_ticket_number');
+        console.log('✅ Verified ticket in storage:', saved);
+      }
+    } catch (error) {
+      if (DEV_MODE) console.error('❌ Error saving ticket:', error);
+    }
+  }, []);
+
+  // Handle existing registration flow
+  const handleExistingRegistration = useCallback((existingReg) => {
+    if (!existingReg?.ticketNumber) return false;
+
+    saveExistingTicket(existingReg.ticketNumber);
+    const { status } = existingReg;
+
+    const statusHandlers = {
+      approved: () => Alert.alert(
+        'Already Registered & Approved! 🎉',
+        'Your application has been approved. Please login to access your account.',
+        [{ text: 'Login', onPress: () => navigation.replace('Login') }]
+      ),
+      rejected: () => Alert.alert(
+        'Application Status',
+        'Your previous application was not approved. Please contact support.',
+        [
+          { text: 'Check Status', onPress: () => navigation.replace('CheckStatus') },
+          { text: 'Back to Login', onPress: () => navigation.replace('Login'), style: 'cancel' },
+        ]
+      ),
+      default: () => Alert.alert(
+        'Already Registered',
+        `Status: ${existingReg.statusMessage || status}\nTicket: ${existingReg.ticketNumber}`,
+        [
+          { text: 'View Dashboard', onPress: () => navigation.replace('InterviewDashboard') },
+          { text: 'Check Status', onPress: () => navigation.replace('CheckStatus'), style: 'cancel' },
+        ]
+      ),
+    };
+
+    (statusHandlers[status] || statusHandlers.default)();
+    return true;
+  }, [navigation, saveExistingTicket]);
+
+  // Main verify OTP handler
+  const handleVerifyOtp = useCallback(async () => {
+    if (otpCode.length !== OTP_LENGTH) {
+      Vibration.vibrate([0, 50, 100, 50]);
       Alert.alert('Validation', 'Please enter complete 6-digit OTP');
       return;
     }
 
     if (isVerifying || verificationAttempted.current) {
-      console.log('⚠️ Verification already in progress, ignoring duplicate call');
+      if (DEV_MODE) console.log('⚠️ Verification already in progress');
       return;
     }
 
@@ -68,105 +148,47 @@ export default function OtpVerificationScreen({ navigation }) {
       setIsVerifying(true);
       verificationAttempted.current = true;
 
-      console.log('🔵 Verifying OTP:', otpCode);
+      if (DEV_MODE) console.log('🔵 Verifying OTP:', otpCode);
 
-      // ✅ Call verifyOtp and get the response directly
       const response = await verifyOtp({
         phoneNumber: state.phoneNumber,
         countryCode: state.countryCode,
         otp: otpCode,
       });
 
-      console.log('✅ OTP Verified Successfully');
-      console.log('📦 Full Response:', response);
+      // Success haptic
+      Vibration.vibrate(50);
 
-      // ✅ Check existingRegistration from response, not from state
+      if (DEV_MODE) {
+        console.log('✅ OTP Verified Successfully');
+        console.log('📦 Response:', response);
+      }
+
       const existingReg = response?.data?.existingRegistration || state.existingRegistration;
       
-      console.log('🔍 Checking existingRegistration:', existingReg);
-
-      if (existingReg && existingReg.ticketNumber) {
-        console.log('📋 Existing Registration Found:', existingReg);
-
-        // ✅ Save ticket number to AsyncStorage
-        try {
-          await AsyncStorage.setItem('@vaidik_ticket_number', existingReg.ticketNumber);
-          console.log('✅ Existing ticket saved:', existingReg.ticketNumber);
-          
-          // Verify it was saved
-          const saved = await AsyncStorage.getItem('@vaidik_ticket_number');
-          console.log('✅ Verified ticket in storage:', saved);
-        } catch (error) {
-          console.error('❌ Error saving existing ticket:', error);
-        }
-
-        // ✅ Redirect based on status
-        const status = existingReg.status;
-        
-        if (status === 'approved') {
-          Alert.alert(
-            'Already Registered & Approved! 🎉',
-            'Your application has been approved. Please login to access your account.',
-            [
-              {
-                text: 'Login',
-                onPress: () => navigation.replace('Login'),
-              },
-            ]
-          );
-        } else if (status === 'rejected') {
-          Alert.alert(
-            'Application Status',
-            'Your previous application was not approved. Please contact support for more information.',
-            [
-              {
-                text: 'Check Status',
-                onPress: () => navigation.replace('CheckStatus'),
-              },
-              {
-                text: 'Back to Login',
-                onPress: () => navigation.replace('Login'),
-                style: 'cancel',
-              },
-            ]
-          );
-        } else {
-          // Waitlist or Interview stages
-          Alert.alert(
-            'Already Registered',
-            `You have already registered.\n\nStatus: ${existingReg.statusMessage || status}\n\nTicket: ${existingReg.ticketNumber}`,
-            [
-              {
-                text: 'View Dashboard',
-                onPress: () => navigation.replace('InterviewDashboard'),
-              },
-              {
-                text: 'Check Status',
-                onPress: () => navigation.replace('CheckStatus'),
-                style: 'cancel',
-              },
-            ]
-          );
-        }
-      } else {
-        // ✅ New user - proceed to registration form
-        console.log('✅ New user - proceeding to registration');
+      if (!handleExistingRegistration(existingReg)) {
+        // New user - proceed to registration
+        if (DEV_MODE) console.log('✅ New user - proceeding to registration');
         navigation.replace('RegisterForm');
       }
     } catch (error) {
-      console.error('❌ OTP Verification Error:', error);
+      // Error haptic
+      Vibration.vibrate([0, 100, 50, 100]);
       
       verificationAttempted.current = false;
+      
+      if (DEV_MODE) console.error('❌ OTP Verification Error:', error);
       
       const errorMessage = error.response?.data?.message || 'Invalid OTP. Please try again.';
       Alert.alert('Error', errorMessage);
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [otpCode, isVerifying, verifyOtp, state, handleExistingRegistration, navigation]);
 
-  const handleResend = async () => {
-    if (!canResend) return;
+  // Resend OTP handler
+  const handleResend = useCallback(async () => {
+    if (!canResend || isVerifying) return;
 
     try {
       setIsVerifying(true);
@@ -177,22 +199,42 @@ export default function OtpVerificationScreen({ navigation }) {
       });
 
       setOtp(['', '', '', '', '', '']);
-      setTimer(30);
-      setCanResend(false);
+      setTimer(INITIAL_TIMER);
       verificationAttempted.current = false;
+      
+      // Focus first input
+      inputRefs.current[0]?.focus();
+      
+      // Success haptic
+      Vibration.vibrate(50);
       
       Alert.alert('Success', 'New OTP sent successfully');
     } catch (error) {
+      Vibration.vibrate([0, 100, 50, 100]);
       Alert.alert('Error', 'Failed to resend OTP. Please try again.');
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [canResend, isVerifying, sendOtp, state]);
+
+  // Change number handler
+  const handleChangeNumber = useCallback(() => {
+    if (!isVerifying) {
+      navigation.goBack();
+    }
+  }, [isVerifying, navigation]);
+
+  // Auto-focus first input on mount
+  useEffect(() => {
+    const focusTimer = setTimeout(() => inputRefs.current[0]?.focus(), 300);
+    return () => clearTimeout(focusTimer);
+  }, []);
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Verify OTP</Text>
@@ -210,7 +252,10 @@ export default function OtpVerificationScreen({ navigation }) {
             <TextInput
               key={index}
               ref={ref => (inputRefs.current[index] = ref)}
-              style={styles.otpInput}
+              style={[
+                styles.otpInput,
+                digit && styles.otpInputFilled,
+              ]}
               value={digit}
               onChangeText={value => handleOtpChange(value, index)}
               onKeyPress={e => handleKeyPress(e, index)}
@@ -218,14 +263,21 @@ export default function OtpVerificationScreen({ navigation }) {
               maxLength={1}
               selectTextOnFocus
               editable={!isVerifying}
+              autoComplete="sms-otp"
+              textContentType="oneTimeCode"
+              accessibilityLabel={`OTP digit ${index + 1}`}
             />
           ))}
         </View>
 
         <View style={styles.timerContainer}>
           {canResend ? (
-            <TouchableOpacity onPress={handleResend} disabled={isVerifying}>
-              <Text style={styles.resendText}>
+            <TouchableOpacity 
+              onPress={handleResend} 
+              disabled={isVerifying}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.resendText, isVerifying && styles.resendTextDisabled]}>
                 {isVerifying ? 'Sending...' : 'Resend OTP'}
               </Text>
             </TouchableOpacity>
@@ -238,26 +290,31 @@ export default function OtpVerificationScreen({ navigation }) {
 
         <TouchableOpacity
           onPress={handleVerifyOtp}
-          disabled={isVerifying || otp.join('').length !== 6}
+          disabled={isButtonDisabled}
           style={[
             styles.verifyButton,
-            (isVerifying || otp.join('').length !== 6) && styles.verifyButtonDisabled,
+            isButtonDisabled && styles.verifyButtonDisabled,
           ]}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
         >
           {isVerifying ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.verifyButtonText}>Verify & Continue</Text>
+            <Text style={styles.verifyButtonText}>
+              {otpComplete ? 'Verifying...' : 'Verify & Continue'}
+            </Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleChangeNumber}
           style={styles.backButton}
           disabled={isVerifying}
+          activeOpacity={0.7}
         >
-          <Text style={styles.backButtonText}>Change Number</Text>
+          <Text style={[styles.backButtonText, isVerifying && styles.backButtonTextDisabled]}>
+            Change Number
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -305,6 +362,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
+    paddingHorizontal: 4,
   },
   otpInput: {
     width: 50,
@@ -318,9 +376,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
+  otpInputFilled: {
+    borderColor: '#5b2b84',
+    backgroundColor: '#f5f0fa',
+  },
   timerContainer: {
     alignItems: 'center',
     marginBottom: 32,
+    minHeight: 20,
   },
   timerText: {
     fontSize: 14,
@@ -331,15 +394,25 @@ const styles = StyleSheet.create({
     color: '#5b2b84',
     fontWeight: '600',
   },
+  resendTextDisabled: {
+    color: '#999',
+  },
   verifyButton: {
     backgroundColor: '#5b2b84',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: '#5b2b84',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   verifyButtonDisabled: {
     backgroundColor: '#ccc',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   verifyButtonText: {
     color: '#fff',
@@ -353,5 +426,8 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#666',
     fontSize: 14,
+  },
+  backButtonTextDisabled: {
+    color: '#ccc',
   },
 });

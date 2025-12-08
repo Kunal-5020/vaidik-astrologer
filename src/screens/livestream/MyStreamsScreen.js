@@ -51,7 +51,7 @@ export default function MyStreamsScreen() {
       console.log('✅ Streams fetched:', response.data);
 
       if (response.success) {
-        const newStreams = response.data.streams || [];
+        const newStreams = response.data || [];
 
         if (refresh || pageNum === 1) {
           setStreams(newStreams);

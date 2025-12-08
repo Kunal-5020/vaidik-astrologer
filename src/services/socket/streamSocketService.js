@@ -129,18 +129,6 @@ class StreamSocketService {
     console.log('💬 Comment sent:', { userName, comment });
   }
 
-  sendLike(streamId, userId, userName) {
-    if (!this.socket?.connected) return;
-    this.socket.emit('send_like', { streamId, userId, userName });
-    console.log('❤️ Like sent:', { userName });
-  }
-
-  sendGift(streamId, userId, userName, userAvatar, giftType, giftName, amount) {
-    if (!this.socket?.connected) return;
-    this.socket.emit('send_gift', { streamId, userId, userName, userAvatar, giftType, giftName, amount });
-    console.log('🎁 Gift sent:', { userName, giftName, amount });
-  }
-
   // ✅ FIX ISSUE 1: Enhanced call acceptance with proper data
   notifyCallAccepted(streamId, userId, userName, callType, callMode, callerAgoraUid) {
     if (!this.socket?.connected) {
@@ -259,20 +247,6 @@ class StreamSocketService {
       callback(data);
     }); 
   }
-  
-  onNewLike(callback) { 
-    this.on('new_like', (data) => {
-      console.log('❤️ New like received:', data);
-      callback(data);
-    }); 
-  }
-  
-  onNewGift(callback) { 
-    this.on('new_gift', (data) => {
-      console.log('🎁 New gift received:', data);
-      callback(data);
-    }); 
-  }
 
   // Viewer Management
   onViewerJoined(callback) { 
@@ -323,7 +297,7 @@ class StreamSocketService {
     
     console.log('🎧 Setting up call_accepted listener (VIEWER)');
     
-    this.socket.on('call_accepted', (data) => {
+    this.socket.on('call_started', (data) => {
       console.log('====================================');
       console.log('📞 VIEWER: call_accepted EVENT RECEIVED');
       console.log('Data:', JSON.stringify(data, null, 2));

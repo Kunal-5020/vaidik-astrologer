@@ -5,223 +5,144 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
-  Share,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { livestreamService } from '../../services';
-import Toast from 'react-native-toast-message';
+import { livestreamService } from '../../services/api/livestream.service';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
+const { width } = Dimensions.get('window');
+
+// Analytics Card Component
+const AnalyticsCard = ({ icon, label, value, unit = '' }) => (
+  <View style={styles.analyticsCard}>
+    <View style={styles.cardIconContainer}>
+      <Ionicons name={icon} size={24} color="#372643" />
+    </View>
+    <View style={styles.cardContent}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      <Text style={styles.cardValue}>
+        {value}
+        <Text style={styles.cardUnit}> {unit}</Text>
+      </Text>
+    </View>
+  </View>
+);
+
+// Header Component
+const StreamHeader = ({ duration }) => (
+  <View style={styles.headerSection}>
+    <Text style={styles.headerTitle}>Stream Analytics</Text>
+    <Text style={styles.headerSubtitle}>Session Summary Report</Text>
+    <View style={styles.durationBadge}>
+      <Ionicons name="time-outline" size={16} color="#372643" />
+      <Text style={styles.durationText}>{duration} minutes</Text>
+    </View>
+  </View>
+);
+
+// Stats Grid
+const StatsGrid = ({ totalViews, totalRevenue, totalCalls }) => (
+  <View style={styles.gridContainer}>
+    <AnalyticsCard
+      icon="eye-outline"
+      label="Total Views"
+      value={totalViews.toLocaleString()}
+    />
+    <AnalyticsCard
+      icon="wallet-outline"
+      label="Revenue"
+      value={`₹${totalRevenue.toLocaleString()}`}
+    />
+    <AnalyticsCard
+      icon="call-outline"
+      label="Paid Calls"
+      value={totalCalls.toLocaleString()}
+    />
+  </View>
+);
+
+// Loading State
+const LoadingState = () => (
+  <View style={styles.centerContainer}>
+    <ActivityIndicator size="large" color="#372643" />
+    <Text style={styles.loadingText}>Fetching analytics...</Text>
+  </View>
+);
+
+// Error State
+const ErrorState = ({ onRetry }) => (
+  <View style={styles.centerContainer}>
+    <Ionicons name="alert-circle-outline" size={48} color="#D4A017" />
+    <Text style={styles.errorTitle}>Unable to Load Analytics</Text>
+    <Text style={styles.errorMessage}>Please try again</Text>
+    <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+      <Text style={styles.retryButtonText}>Retry</Text>
+    </TouchableOpacity>
+  </View>
+);
+
+// Main Component
 export default function StreamAnalyticsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { streamId } = route.params;
-
-  const [analytics, setAnalytics] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
   }, []);
 
-  const fetchAnalytics = async () => {
-    try {
-      const response = await livestreamService.getStreamAnalytics(streamId);
-      if (response.success) {
-        setAnalytics(response.data);
-      }
-    } catch (error) {
-      console.error('Fetch analytics error:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to load analytics',
-        position: 'top',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const fetchAnalytics = () => {
+    setLoading(true);
+    setError(false);
+    livestreamService
+      .getStreamAnalytics(streamId)
+      .then((res) => setData(res.data))
+      .catch((err) => {
+        console.error('Analytics Error:', err);
+        setError(true);
+      })
+      .finally(() => setLoading(false));
   };
 
-  const formatDuration = (seconds) => {
-    if (!seconds) return '0:00';
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs
-        .toString()
-        .padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  const handleBackPress = () => {
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   };
 
-  const handleShare = async () => {
-    if (!analytics) return;
+  if (loading) return <LoadingState />;
+  if (error || !data) return <ErrorState onRetry={fetchAnalytics} />;
 
-    try {
-      const message = `
-🎥 Stream Analytics
-
-📊 Duration: ${formatDuration(analytics?.duration)}
-👥 Peak Viewers: ${analytics?.peakViewers || 0}
-👁️ Total Views: ${analytics?.totalViews || 0}
-💰 Revenue: ₹${analytics?.totalRevenue || 0}
-📞 Calls: ${analytics?.totalCalls || 0}
-
-Stream on VaidikTalk!
-      `.trim();
-
-      await Share.share({ message });
-    } catch (error) {
-      console.error('Share error:', error);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#372643" />
-          <Text style={styles.loadingText}>Loading analytics...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const duration = Math.floor((data?.duration || 0) / 60);
+  const totalViews = data?.totalViews || 0;
+  const totalRevenue = data?.totalRevenue || 0;
+  const totalCalls = data?.totalCalls || 0;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Icon name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Stream Analytics</Text>
-        <TouchableOpacity onPress={handleShare} activeOpacity={0.7}>
-          <Icon name="share" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* Success Banner */}
-        <View style={styles.successBanner}>
-          <Icon name="check-circle" size={44} color="#10b981" />
-          <Text style={styles.successTitle}>Stream Completed!</Text>
-          <Text style={styles.successSubtitle} numberOfLines={2}>
-            {analytics?.stream?.title}
-          </Text>
-        </View>
-
-        {/* Main Stats */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Icon name="access-time" size={28} color="#F59E0B" />
-            <Text style={styles.statValue}>{formatDuration(analytics?.duration)}</Text>
-            <Text style={styles.statLabel}>Duration</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Icon name="visibility" size={28} color="#3B82F6" />
-            <Text style={styles.statValue}>{analytics?.totalViews || 0}</Text>
-            <Text style={styles.statLabel}>Total Views</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Icon name="people" size={28} color="#8B5CF6" />
-            <Text style={styles.statValue}>{analytics?.peakViewers || 0}</Text>
-            <Text style={styles.statLabel}>Peak Viewers</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Icon name="attach-money" size={28} color="#10B981" />
-            <Text style={styles.statValue}>₹{analytics?.totalRevenue || 0}</Text>
-            <Text style={styles.statLabel}>Revenue</Text>
-          </View>
-        </View>
-
-        {/* Engagement Stats */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Engagement</Text>
-
-          <View style={styles.engagementRow}>
-            <Icon name="chat" size={20} color="#6B7280" />
-            <Text style={styles.engagementLabel}>Comments</Text>
-            <Text style={styles.engagementValue}>{analytics?.totalComments || 0}</Text>
-          </View>
-
-          <View style={styles.engagementRow}>
-            <Icon name="favorite" size={20} color="#EF4444" />
-            <Text style={styles.engagementLabel}>Likes</Text>
-            <Text style={styles.engagementValue}>{analytics?.totalLikes || 0}</Text>
-          </View>
-
-          <View style={styles.engagementRow}>
-            <Icon name="card-giftcard" size={20} color="#F59E0B" />
-            <Text style={styles.engagementLabel}>Gifts</Text>
-            <Text style={styles.engagementValue}>{analytics?.totalGifts || 0}</Text>
-          </View>
-
-          <View style={styles.engagementRow}>
-            <Icon name="phone" size={20} color="#10B981" />
-            <Text style={styles.engagementLabel}>Calls</Text>
-            <Text style={styles.engagementValue}>{analytics?.totalCalls || 0}</Text>
-          </View>
-        </View>
-
-        {/* Revenue Breakdown */}
-        {analytics?.revenueBreakdown && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Revenue Breakdown</Text>
-
-            {analytics.revenueBreakdown.entry > 0 && (
-              <View style={styles.revenueRow}>
-                <Text style={styles.revenueLabel}>Entry Fees</Text>
-                <Text style={styles.revenueValue}>
-                  ₹{analytics.revenueBreakdown.entry}
-                </Text>
-              </View>
-            )}
-
-            {analytics.revenueBreakdown.gifts > 0 && (
-              <View style={styles.revenueRow}>
-                <Text style={styles.revenueLabel}>Gifts</Text>
-                <Text style={styles.revenueValue}>
-                  ₹{analytics.revenueBreakdown.gifts}
-                </Text>
-              </View>
-            )}
-
-            {analytics.revenueBreakdown.calls > 0 && (
-              <View style={styles.revenueRow}>
-                <Text style={styles.revenueLabel}>Calls</Text>
-                <Text style={styles.revenueValue}>
-                  ₹{analytics.revenueBreakdown.calls}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Actions */}
-        <View style={styles.actions}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <StreamHeader duration={duration} />
+        <StatsGrid
+          totalViews={totalViews}
+          totalRevenue={totalRevenue}
+          totalCalls={totalCalls}
+        />
+        <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => navigation.navigate('Home')}
-            activeOpacity={0.85}
+            style={[styles.actionButton, styles.primaryButton]}
+            onPress={handleBackPress}
           >
-            <Text style={styles.primaryButtonText}>Back to Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => navigation.navigate('MyStreams')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.secondaryButtonText}>View All Streams</Text>
+            <Ionicons name="home-outline" size={20} color="#372643" />
+            <Text style={styles.actionButtonText}>Back to Home</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -230,197 +151,166 @@ Stream on VaidikTalk!
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F5F6FA',
-  },
   container: {
     flex: 1,
-    backgroundColor: '#F5F6FA',
+    backgroundColor: '#FAFAFA',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#372643',
+    paddingHorizontal: 20,
+  },
+
+  // Header
+  headerSection: {
+    marginBottom: 32,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  successBanner: {
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    paddingVertical: 28,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#111827',
-    marginTop: 12,
+    color: '#372643',
+    marginBottom: 4,
+    letterSpacing: -0.5,
   },
-  successSubtitle: {
+  headerSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-    textAlign: 'center',
+    color: '#666666',
+    marginBottom: 16,
+    fontWeight: '500',
   },
-  statsGrid: {
+  durationBadge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 10,
+    alignItems: 'center',
+    backgroundColor: '#F5F3F0',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignSelf: 'flex-start',
   },
-  statCard: {
-    width: '48%',
+  durationText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#372643',
+    letterSpacing: 0.3,
+  },
+
+  // Grid
+  gridContainer: {
+    gap: 16,
+    marginBottom: 32,
+  },
+  analyticsCard: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     borderRadius: 12,
-    padding: 16,
-    margin: '1%',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  engagementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  engagementLabel: {
-    flex: 1,
-    fontSize: 13,
-    color: '#374151',
-    marginLeft: 12,
-  },
-  engagementValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  revenueRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  revenueLabel: {
-    fontSize: 13,
-    color: '#374151',
-  },
-  revenueValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#10B981',
-  },
-  viewerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  viewerRank: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#F59E0B',
-    alignItems: 'center',
+  cardIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: '#F5F3F0',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 18,
   },
-  rankText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  viewerInfo: {
+  cardContent: {
     flex: 1,
-    marginLeft: 12,
   },
-  viewerName: {
+  cardLabel: {
     fontSize: 13,
+    color: '#888888',
     fontWeight: '600',
-    color: '#111827',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  viewerTime: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
+  cardValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#372643',
   },
-  viewerAmount: {
+  cardUnit: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#10B981',
+    color: '#999999',
   },
-  actions: {
-    paddingHorizontal: 16,
-    marginTop: 20,
+
+  // Actions
+  actionsContainer: {
+    marginTop: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   primaryButton: {
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
+    backgroundColor: '#FFD700',
   },
-  primaryButtonText: {
-    color: '#FFFFFF',
+  actionButtonText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#372643',
+    letterSpacing: 0.5,
   },
-  secondaryButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  secondaryButtonText: {
-    color: '#374151',
+
+  // Loading & Error
+  loadingText: {
+    marginTop: 16,
     fontSize: 15,
-    fontWeight: '600',
+    color: '#666666',
+    fontWeight: '500',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#372643',
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#777777',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#372643',
+    fontWeight: '700',
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
 });

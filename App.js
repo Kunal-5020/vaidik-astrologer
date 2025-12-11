@@ -1,4 +1,4 @@
-// App.js (ASTROLOGER APP - FIXED NOTIFICATION HANDLING)
+// App.js (ASTROLOGER APP - FIXED: Removed Full Screen Notification Config)
 import React, { useEffect, useRef, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,24 +15,24 @@ import CustomToast from './src/component/CustomToast';
 import { AuthProvider } from './src/contexts';
 import { RegistrationProvider } from './src/contexts';
 import astrologerAuthService from './src/services/api/auth.service';
-import InAppNotification from './src/component/InAppNotification';
 import IncomingChatRequestModal from './src/component/IncomingChatRequestModal';
 import IncomingCallModal from './src/component/IncomingCallModal';
 import GiftNotificationModal from './src/component/GiftNotificationModal';
 import notificationSocket from './src/services/NotificationSocket';
 import { STORAGE_KEYS } from './src/config/constants';
 import { storageService } from './src/services/storage/storage.service';
-import  ChatService  from './src/services/api/chat/ChatService';
+import ChatService from './src/services/api/chat/ChatService';
 import AstrologerChatSocket from './src/services/socket/AstrologerChatSocket';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import { CallService } from './src/services/api/call/CallService';
 
-/** TYPE CONFIG */
+/** TYPE CONFIG - UPDATED: Removed fullScreen: true */
 const getNotificationConfig = (type) => {
   const configs = {
-    chat_request: { priority: 'urgent', sound: 'default', fullScreen: true, foregroundBehavior: 'full-screen-modal' },
-    call_request_audio: { priority: 'urgent', sound: 'default', fullScreen: true, foregroundBehavior: 'full-screen-modal' },
-    call_request_video: { priority: 'urgent', sound: 'default', fullScreen: true, foregroundBehavior: 'full-screen-modal' },
+    // Changed fullScreen to false and behavior to banner/modal
+    chat_request: { priority: 'urgent', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
+    call_request_audio: { priority: 'urgent', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
+    call_request_video: { priority: 'urgent', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
     chat_message: { priority: 'high', sound: 'default', fullScreen: false, foregroundBehavior: 'context-aware' },
     gift_received: { priority: 'urgent', sound: 'gift_received', fullScreen: false, foregroundBehavior: 'gift-modal' },
     request_accepted: { priority: 'high', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
@@ -40,7 +40,7 @@ const getNotificationConfig = (type) => {
     request_expired: { priority: 'high', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
     added_to_queue: { priority: 'medium', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
     queue_update: { priority: 'medium', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
-    your_turn: { priority: 'urgent', sound: 'default', fullScreen: true, foregroundBehavior: 'full-screen-modal' },
+    your_turn: { priority: 'urgent', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
     session_ending: { priority: 'high', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
     session_ended: { priority: 'high', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
     low_balance: { priority: 'urgent', sound: 'default', fullScreen: false, foregroundBehavior: 'banner' },
@@ -59,11 +59,12 @@ const getNotificationConfig = (type) => {
   };
 };
 
-/** BACKGROUND HANDLER: only shows OS notification; logic happens in AppContent */
+/** BACKGROUND HANDLER: Cleaned up fullScreen logic */
 messaging().setBackgroundMessageHandler(async (remoteMessage) => {
   console.log('📩 [Background] Message received:', remoteMessage.notification?.title);
   const data = remoteMessage.data || {};
-  const isFullScreen = data.fullScreen === 'true' || data.fullScreen === true;
+  
+  // Removed isFullScreen check logic
 
   try {
     await notifee.displayNotification({
@@ -73,7 +74,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
       android: {
         channelId: 'vaidik_talk_notifications',
         importance: AndroidImportance.HIGH,
-        category: AndroidCategory.CALL,
+        // Removed category CALL to prevent full screen intent triggering attempts if handled by system
         sound: 'default',
         pressAction: { id: 'default' },
       },
@@ -241,6 +242,8 @@ const AppContent = () => {
     switch (type) {
       case 'chat_request':
         console.log('📥 [ChatRequest] Setting incomingChatRequest');
+        // We still set this state to show the In-App Modal (UI)
+        // But the System Full Screen Notification is disabled via config
         setIncomingChatRequest({
           orderId: data.orderId,
           sessionId: data.sessionId,
@@ -369,6 +372,7 @@ const AppContent = () => {
       const res = await ChatService.acceptChatAsAstrologer(incomingChatRequest.sessionId);
       console.log('✅ [Chat] Backend accept response:', res);
 
+      // Ensure socket is connected before navigating
       await AstrologerChatSocket.connect();
 
       setIncomingChatRequest(null);
@@ -393,7 +397,7 @@ const AppContent = () => {
   const handleRejectChat = () => {
     console.log('❌ [Chat] Rejected');
     setIncomingChatRequest(null);
-    // TODO: Call API to reject
+    // TODO: Call API to reject if needed
   };
 
   const handleAcceptCall = async () => {
@@ -542,6 +546,7 @@ const AppContent = () => {
           </AuthProvider>
         </NavigationContainer>
 
+        {/* Kept In-App Modals for answering calls/chats */}
         <IncomingChatRequestModal
           visible={!!incomingChatRequest}
           request={incomingChatRequest}
@@ -567,13 +572,6 @@ const AppContent = () => {
               navigationRef.current.navigate('AstroChatRoom', { sessionId });
             }
           }}
-        />
-
-        <InAppNotification
-          visible={!!bannerNotification}
-          notification={bannerNotification}
-          onDismiss={() => setBannerNotification(null)}
-          onAction={() => setBannerNotification(null)}
         />
 
         <Toast config={toastConfig} />

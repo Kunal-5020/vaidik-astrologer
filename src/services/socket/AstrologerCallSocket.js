@@ -6,14 +6,18 @@ import { STORAGE_KEYS } from '../../config/constants';
 class AstrologerCallSocket {
   socket = null;
   connectionPromise = null;
+  astrologerId = null;
 
   async connect() {
     if (this.socket?.connected) {
-      console.log('✅ [AstroCall] Already connected:', this.socket.id);
+      // ✅ Ensure registration even if already connected (in case of re-mounts)
+      if (this.astrologerId) {
+        this.emit('register_astrologer', { astrologerId: this.astrologerId });
+      }
       return this.socket;
     }
+
     if (this.connectionPromise) {
-      console.log('⏳ [AstroCall] Connection in progress...');
       return this.connectionPromise;
     }
 
@@ -32,12 +36,11 @@ class AstrologerCallSocket {
 
       let astroJson = await AsyncStorage.getItem(STORAGE_KEYS.ASTROLOGER_DATA);
       if (!astroJson) astroJson = await AsyncStorage.getItem('astrologer');
-      if (!astroJson) astroJson = await AsyncStorage.getItem('astrologerData');
-
+      
       const astrologer = astroJson ? JSON.parse(astroJson) : null;
-      const astrologerId = astrologer?._id || astrologer?.id;
+      this.astrologerId = astrologer?._id || astrologer?.id;
 
-      if (!token || !astrologerId) {
+      if (!token || !this.astrologerId) {
         throw new Error('Missing token or astrologerId');
       }
 
@@ -48,24 +51,27 @@ class AstrologerCallSocket {
         transports: ['websocket'],
         auth: {
           token,
-          userId: astrologerId,
+          userId: this.astrologerId,
           role: 'Astrologer',
         },
         reconnection: true,
-        reconnectionDelay: 1000,
         reconnectionAttempts: 5,
         timeout: 10000,
       });
 
       return new Promise((resolve, reject) => {
-        const timeout = setTimeout(
-          () => reject(new Error('AstroCall connect timeout')),
-          10000,
-        );
+        const timeout = setTimeout(() => {
+            reject(new Error('AstroCall connect timeout'));
+        }, 10000);
 
         this.socket.once('connect', () => {
           clearTimeout(timeout);
           console.log('🟢 [AstroCall] Connected:', this.socket.id);
+
+          // ✅ CRITICAL FIX: Register Astrologer immediately on connect
+          this.emit('register_astrologer', { astrologerId: this.astrologerId });
+          console.log('📝 [AstroCall] Registered as:', this.astrologerId);
+
           resolve(this.socket);
         });
 
@@ -92,37 +98,32 @@ class AstrologerCallSocket {
 
   disconnect() {
     if (this.socket) {
-      console.log('🔌 [AstroCall] Disconnecting...');
       this.socket.disconnect();
       this.socket = null;
     }
   }
 
   on(event, cb) {
-    if (!this.socket) {
-      console.error('❌ [AstroCall] Cannot listen, socket not initialized');
-      return;
-    }
+    if (!this.socket) return;
     this.socket.on(event, cb);
-    console.log(`👂 [AstroCall] Listening to ${event}`);
   }
 
   off(event, cb) {
     if (!this.socket) return;
     this.socket.off(event, cb);
-    console.log(`🔇 [AstroCall] Stopped listening to ${event}`);
   }
 
   emit(event, data, cb) {
-    if (!this.socket?.connected) {
-      console.error('❌ [AstroCall] Cannot emit, not connected');
-      return;
+    if (!this.socket?.connected) return;
+    console.log(`📤 [AstroCall] Emitting ${event}`, data);
+    if (cb) {
+        this.socket.emit(event, data, cb);
+    } else {
+        this.socket.emit(event, data);
     }
-    console.log(`📤 [AstroCall] Emitting ${event}:`, data);
-    this.socket.emit(event, data, cb);
   }
 
-  // helpers
+  // Helpers
   joinSession(sessionId, astrologerId) {
     this.emit('join_session', { sessionId, userId: astrologerId, role: 'astrologer' });
   }

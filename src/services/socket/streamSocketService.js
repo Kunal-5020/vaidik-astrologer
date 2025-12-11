@@ -17,7 +17,7 @@ class StreamSocketService {
   /**
    * Connect to stream namespace
    */
-  async connect(streamId, userId, userName, isHost = false) {
+  async connect(streamId, userId, userName, isHost = true) {
     try {
       const accessToken = await storageService.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
@@ -130,29 +130,22 @@ class StreamSocketService {
   }
 
   // ✅ FIX ISSUE 1: Enhanced call acceptance with proper data
-  notifyCallAccepted(streamId, userId, userName, callType, callMode, callerAgoraUid) {
-    if (!this.socket?.connected) {
-      console.error('❌ Socket not connected - cannot notify call accepted');
-      return;
-    }
-    
-    const data = { 
-      streamId, 
-      userId, 
-      userName, 
-      callType, 
-      callMode, 
-      callerAgoraUid,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('====================================');
-    console.log('📞 EMITTING call_accepted EVENT');
-    console.log('Data:', JSON.stringify(data, null, 2));
-    console.log('====================================');
-    
-    this.socket.emit('call_accepted', data);
+  notifyCallAccepted(streamId, userId, userName, callType, callMode, token, channelName, callerUid, hostUid) {
+  if (this.socket) {
+    this.socket.emit('call_accepted', {
+      streamId,
+      userId,
+      userName,
+      callType,
+      callMode,
+      token,
+      channelName,
+      callerAgoraUid: callerUid,
+      hostAgoraUid: hostUid
+    });
   }
+}
+
 
   // ✅ FIX ISSUE 3: Enhanced call rejection
   notifyCallRejected(streamId, userId) {

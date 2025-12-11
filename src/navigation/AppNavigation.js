@@ -36,6 +36,8 @@ import PerformanceAnalysisScreen from '../screens/main_screens/PerformanceAnalys
 import PayoutRequestsScreen from '../screens/wallet/PayoutRequestsScreen';
 import PayoutDetailsScreen from '../screens/wallet/PayoutDetailsScreen';
 import AddBankAccountScreen from '../screens/wallet/AddBankAccountScreen';
+import AstroHistoryChatScreen from '../screens/CallChatSection/AstroHistoryChatScreen';
+import SuggestRemediesScreen from '../screens/CallChatSection/SuggestRemediesScreen';
 
 const Stack = createStackNavigator();
 
@@ -108,6 +110,18 @@ const AppNavigation = () => {
       <Stack.Screen 
         name="AstroChatRoom" 
         component={AstroChatRoom}
+        options={{ headerShown: false, animationEnabled: true }}
+      />
+
+      <Stack.Screen 
+        name="AstroHistoryChat" 
+        component={AstroHistoryChatScreen}
+        options={{ headerShown: false, animationEnabled: true }}
+      />
+
+      <Stack.Screen 
+        name="SuggestRemedies" 
+        component={SuggestRemediesScreen}
         options={{ headerShown: false, animationEnabled: true }}
       />
 

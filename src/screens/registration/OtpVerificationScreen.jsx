@@ -132,59 +132,81 @@ export default function OtpVerificationScreen({ navigation }) {
   }, [navigation, saveExistingTicket]);
 
   // Main verify OTP handler
-  const handleVerifyOtp = useCallback(async () => {
-    if (otpCode.length !== OTP_LENGTH) {
-      Vibration.vibrate([0, 50, 100, 50]);
-      Alert.alert('Validation', 'Please enter complete 6-digit OTP');
-      return;
+const handleVerifyOtp = useCallback(async () => {
+  if (otpCode.length !== OTP_LENGTH) {
+    Vibration.vibrate([0, 50, 100, 50]);
+    Alert.alert('Validation', 'Please enter complete 6-digit OTP');
+    return;
+  }
+
+  if (isVerifying || verificationAttempted.current) {
+    if (DEV_MODE) console.log('⚠️ Verification already in progress');
+    return;
+  }
+
+  try {
+    setIsVerifying(true);
+    verificationAttempted.current = true;
+
+    if (DEV_MODE) console.log('🔵 Verifying OTP:', otpCode);
+
+    // ✅ This returns the full API response
+    const response = await verifyOtp({
+      phoneNumber: state.phoneNumber,
+      countryCode: state.countryCode,
+      otp: otpCode,
+    });
+
+    // Success haptic
+    Vibration.vibrate(50);
+
+    if (DEV_MODE) {
+      console.log('✅ OTP Verified Successfully');
+      console.log('📦 Verify OTP Response (from API):', response);
     }
 
-    if (isVerifying || verificationAttempted.current) {
-      if (DEV_MODE) console.log('⚠️ Verification already in progress');
-      return;
-    }
+    // ✅ Use response, not context state
+    const { isNewUser, existingRegistration } = response.data || {};
 
-    try {
-      setIsVerifying(true);
-      verificationAttempted.current = true;
-
-      if (DEV_MODE) console.log('🔵 Verifying OTP:', otpCode);
-
-      const response = await verifyOtp({
-        phoneNumber: state.phoneNumber,
-        countryCode: state.countryCode,
-        otp: otpCode,
-      });
-
-      // Success haptic
-      Vibration.vibrate(50);
-
+    if (!isNewUser && existingRegistration) {
       if (DEV_MODE) {
-        console.log('✅ OTP Verified Successfully');
-        console.log('📦 Response:', response);
+        console.log('👤 Existing registration detected:', existingRegistration.status);
       }
 
-      const existingReg = response?.data?.existingRegistration || state.existingRegistration;
-      
-      if (!handleExistingRegistration(existingReg)) {
-        // New user - proceed to registration
-        if (DEV_MODE) console.log('✅ New user - proceeding to registration');
-        navigation.replace('RegisterForm');
-      }
-    } catch (error) {
-      // Error haptic
-      Vibration.vibrate([0, 100, 50, 100]);
-      
-      verificationAttempted.current = false;
-      
-      if (DEV_MODE) console.error('❌ OTP Verification Error:', error);
-      
-      const errorMessage = error.response?.data?.message || 'Invalid OTP. Please try again.';
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setIsVerifying(false);
+      const handled = handleExistingRegistration(existingRegistration);
+      if (handled) return;
     }
-  }, [otpCode, isVerifying, verifyOtp, state, handleExistingRegistration, navigation]);
+
+    // New user – go to registration
+    if (DEV_MODE) console.log('✅ New user - proceeding to registration');
+    navigation.replace('RegisterForm');
+
+  } catch (error) {
+    Vibration.vibrate([0, 100, 50, 100]);
+    verificationAttempted.current = false;
+
+    if (DEV_MODE) console.error('❌ OTP Verification Error:', error);
+
+    const errorMessage =
+      error.response?.data?.message || state.error || 'Invalid OTP. Please try again.';
+    Alert.alert('Error', errorMessage);
+
+    setOtp(['', '', '', '', '', '']);
+    inputRefs.current[0]?.focus();
+  } finally {
+    setIsVerifying(false);
+  }
+}, [
+  otpCode,
+  isVerifying,
+  verifyOtp,
+  state.phoneNumber,
+  state.countryCode,
+  state.error,
+  handleExistingRegistration,
+  navigation,
+]);
+
 
   // Resend OTP handler
   const handleResend = useCallback(async () => {

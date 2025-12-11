@@ -126,13 +126,13 @@ class AstrologerAuthService {
         throw new Error('Invalid response structure from server');
       }
 
-      const { tokens, user, astrologer } = response.data.data;
+      const { tokens, astrologer } = response.data.data;
 
       if (!tokens?.accessToken || !tokens?.refreshToken) {
         throw new Error('Server did not return authentication tokens');
       }
 
-      if (!user || !astrologer) {
+      if (!astrologer) {
         throw new Error('Server did not return user or astrologer data');
       }
 
@@ -141,7 +141,6 @@ class AstrologerAuthService {
       await Promise.all([
         AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken),
         AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken),
-        AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user)),
         AsyncStorage.setItem(STORAGE_KEYS.ASTROLOGER_DATA, JSON.stringify(astrologer)),
       ]);
 
@@ -182,7 +181,6 @@ class AstrologerAuthService {
         success: response.data.success,
         canLogin: response.data.data?.canLogin,
         hasTokens: !!response.data.data?.tokens,
-        hasUser: !!response.data.data?.user,
         hasAstrologer: !!response.data.data?.astrologer,
       });
 
@@ -195,20 +193,19 @@ class AstrologerAuthService {
         }
 
         // Astrologer exists - save tokens
-        const { tokens, user, astrologer } = response.data.data;
+        const { tokens, astrologer } = response.data.data;
 
         if (!tokens?.accessToken || !tokens?.refreshToken) {
           throw new Error('Server did not return authentication tokens');
         }
 
-        if (!user || !astrologer) {
+        if (!astrologer) {
           throw new Error('Server did not return user or astrologer data');
         }
       
         await Promise.all([
           AsyncStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken),
           AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken),
-          AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user)),
           AsyncStorage.setItem(STORAGE_KEYS.ASTROLOGER_DATA, JSON.stringify(astrologer)),
         ]);
 
@@ -267,7 +264,6 @@ class AstrologerAuthService {
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
-        STORAGE_KEYS.USER_DATA,
         STORAGE_KEYS.ASTROLOGER_DATA,
         STORAGE_KEYS.PHONE_NUMBER,
       ]);
@@ -376,6 +372,56 @@ class AstrologerAuthService {
       console.error('❌ [AstrologerAuth] Error during cleanup:', error);
     }
   }
+
+  /**
+ * ✅ NEW: Get fresh astrologer profile from API
+ */
+async fetchFreshProfile() {
+  try {
+    console.log('🔄 [AstrologerAuth] Fetching fresh astrologer profile...');
+    
+    const response = await apiClient.post(API_ENDPOINTS.ASTROLOGER_ME);
+    
+    console.log('📥 [AstrologerAuth] Fresh profile response received:', response.data);
+
+    if (response.data?.success) {
+      const { astrologer } = response.data.data;
+      
+      console.log('✅ [AstrologerAuth] Fresh profile fetched:', {
+        astrologerName: astrologer?.name,
+        experienceYears: astrologer?.experienceYears,
+        specializations: astrologer?.specializations?.length,
+        languages: astrologer?.languages?.length,
+      });
+      
+      // Update AsyncStorage with fresh data
+        AsyncStorage.setItem(STORAGE_KEYS.ASTROLOGER_DATA, JSON.stringify(astrologer));
+      
+      console.log('💾 [AstrologerAuth] Fresh profile saved to storage');
+      
+      return { success: true, astrologer };
+    }
+    
+    throw new Error('Invalid profile response from server');
+  } catch (error) {
+    console.error('❌ [AstrologerAuth] Failed to fetch fresh profile:', error);
+    
+    // If API fails, return cached data as fallback
+      AsyncStorage.getItem(STORAGE_KEYS.ASTROLOGER_DATA);
+    
+    if ( cachedAstrologer) {
+      console.log('⚠️  [AstrologerAuth] Using cached profile data as fallback');
+      return {
+        success: true,
+        astrologer: JSON.parse(cachedAstrologer),
+        isCached: true,
+      };
+    }
+    
+    throw error;
+  }
+}
+
 }
 
 export const astrologerAuthService = new AstrologerAuthService();

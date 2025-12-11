@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import * as Progress from 'react-native-progress';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registrationService } from '../services';
+import astrologerAuthService from '../services/api/auth.service';
 
 const SplashScreen = ({ navigation }) => {
   useEffect(() => {
@@ -10,68 +11,93 @@ const SplashScreen = ({ navigation }) => {
   }, []);
 
   const checkUserStatus = async () => {
-    try {
-      console.log('🔍 Checking user status...');
+  try {
+    console.log('🔍 Checking user status...');
 
-      // Wait 3 seconds for splash animation
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait 3 seconds for splash animation
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // ✅ Step 1: Check if astrologer is logged in (has access token)
-      const accessToken = await AsyncStorage.getItem('@vaidik_access_token');
+    // ✅ Step 1: Check if astrologer is logged in and get fresh profile
+    const accessToken = await AsyncStorage.getItem('@vaidik_access_token');
+    
+    if (accessToken) {
+      console.log('✅ Access token found - fetching fresh profile...');
       
-      if (accessToken) {
-        console.log('✅ Astrologer is logged in - Redirect to Home');
-        navigation.replace('Home');
-        return;
-      }
-
-      // ✅ Step 2: Check if user has registered (has ticket number)
-      const ticketNumber = await AsyncStorage.getItem('@vaidik_ticket_number');
-      
-      if (ticketNumber) {
-        console.log('📋 User has ticket number:', ticketNumber);
+      try {
+        // ✅ Fetch fresh profile from API
+        const profileResponse = await astrologerAuthService.fetchFreshProfile();
         
-        try {
-          // Check registration status from backend
-          const response = await registrationService.checkStatusByTicket(ticketNumber);
-          
-          if (response.success && response.data) {
-            const data = response.data.ticketNumber ? response.data : response.data.registration;
-            
-            console.log('📊 Registration Status:', data.status);
-            
-            if (data.status === 'approved') {
-              // Approved - redirect to login
-              console.log('✅ Approved - Redirect to Login');
-              navigation.replace('Login');
-            } else if (data.status === 'rejected') {
-              // Rejected - redirect to login
-              console.log('❌ Rejected - Redirect to Login');
-              navigation.replace('Login');
-            } else {
-              // Waitlist or Interview stages - redirect to dashboard
-              console.log('📱 Waitlist/Interview - Redirect to Dashboard');
-              navigation.replace('InterviewDashboard');
-            }
-            return;
-          }
-        } catch (error) {
-          console.error('❌ Error checking status:', error);
-          // If error checking status, clear ticket and go to login
-          await AsyncStorage.removeItem('@vaidik_ticket_number');
+        if (profileResponse.success) {
+          console.log('✅ Fresh profile loaded - Redirect to Home');
+          navigation.replace('Home');
+          return;
+        }
+      } catch (profileError) {
+        console.error('❌ Failed to fetch profile:', profileError);
+        
+        // If profile fetch fails, check if we have cached data
+        const cachedAstrologer = await AsyncStorage.getItem('@vaidik_astrologer_data');
+        
+        if (cachedAstrologer) {
+          console.log('⚠️  Using cached profile - Redirect to Home');
+          navigation.replace('Home');
+          return;
+        } else {
+          // No valid data, force logout
+          console.log('❌ No valid profile data - Redirect to Login');
+          await AsyncStorage.multiRemove([
+            '@vaidik_access_token',
+            '@vaidik_refresh_token',
+            '@vaidik_user_data',
+            '@vaidik_astrologer_data',
+          ]);
+          navigation.replace('Login');
+          return;
         }
       }
-
-      // ✅ Step 3: No token, no ticket - new user, go to login
-      console.log('🔐 New user - Redirect to Login');
-      navigation.replace('Login');
-      
-    } catch (error) {
-      console.error('❌ Splash error:', error);
-      // On any error, redirect to login
-      navigation.replace('Login');
     }
-  };
+
+    // ✅ Step 2: Check if user has registered (has ticket number)
+    const ticketNumber = await AsyncStorage.getItem('@vaidik_ticket_number');
+    
+    if (ticketNumber) {
+      console.log('📋 User has ticket number:', ticketNumber);
+      
+      try {
+        const response = await registrationService.checkStatusByTicket(ticketNumber);
+        
+        if (response.success && response.data) {
+          const data = response.data.ticketNumber ? response.data : response.data.registration;
+          
+          console.log('📊 Registration Status:', data.status);
+          
+          if (data.status === 'approved') {
+            console.log('✅ Approved - Redirect to Login');
+            navigation.replace('Login');
+          } else if (data.status === 'rejected') {
+            console.log('❌ Rejected - Redirect to Login');
+            navigation.replace('Login');
+          } else {
+            console.log('📱 Waitlist/Interview - Redirect to Dashboard');
+            navigation.replace('InterviewDashboard');
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Error checking status:', error);
+        await AsyncStorage.removeItem('@vaidik_ticket_number');
+      }
+    }
+
+    // ✅ Step 3: No token, no ticket - new user, go to login
+    console.log('🔐 New user - Redirect to Login');
+    navigation.replace('Login');
+    
+  } catch (error) {
+    console.error('❌ Splash error:', error);
+    navigation.replace('Login');
+  }
+};
 
   return (
     <View style={styles.container}>

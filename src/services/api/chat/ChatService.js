@@ -37,6 +37,12 @@ const ChatService = {
     return res.data;
   },
 
+  async getConversationHistory(orderId, limit = 100) {
+    const url = `/chat/astrologer/conversations/${orderId}/messages`;
+    const res = await apiClient.get(url, { params: { limit } });
+    return res.data.data;
+  },
+
   // ⭐ NEW: Star message
   async starMessage(messageId, sessionId) {
     const url = `/chat/messages/${messageId}/star`;

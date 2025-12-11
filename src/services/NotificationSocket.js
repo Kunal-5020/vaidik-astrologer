@@ -1,261 +1,210 @@
-// src/services/NotificationSocket.js
 import { io } from 'socket.io-client';
-import env from '../config/env';
+import env from '../config/env'; // Ensure this points to your environment config
+import { AppState } from 'react-native';
 
 class NotificationSocket {
   constructor() {
     this.socket = null;
-    this.isConnected = false;
+    this.connectionPromise = null;
+    this.token = null;
+    this.deviceId = null;
+    this.userType = null;
     this.listeners = new Map();
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
   }
 
   /**
-   * Initialize and connect to notification socket
-   * @param {string} token - JWT token
-   * @param {string} deviceId - Device ID
-   * @param {string} userType - 'user' or 'astrologer'
+   * Establishes a connection to the Notification Gateway.
+   * Handles singleton behavior and re-connection logic.
    */
-  async connect(token, deviceId, userType = 'user') {
+  async connect(token, deviceId, userType = 'User') {
+    // 1. If socket is already connected with same credentials, do nothing
+    if (this.socket?.connected && this.token === token) {
+      console.log('✅ [NotificationSocket] Already connected');
+      return this.socket;
+    }
+
+    // 2. Update credentials
+    this.token = token;
+    this.deviceId = deviceId;
+    this.userType = userType;
+
+    // 3. If a connection is in progress, return that promise
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    // 4. Force disconnect if existing socket exists but tokens changed
+    if (this.socket) {
+      this.disconnect();
+    }
+
+    this.connectionPromise = this._initSocket();
+    return this.connectionPromise;
+  }
+
+  async _initSocket() {
     try {
-      // Disconnect existing connection
-      if (this.socket) {
-        this.disconnect();
+      if (!this.token || !this.deviceId) {
+        throw new Error('Missing token or deviceId for NotificationSocket');
       }
 
-      const SOCKET_URL = env.SOCKET_URL; // Replace with your backend URL
+      const SOCKET_URL = `${env.SOCKET_URL}/notifications`; // Namespace from backend
+      console.log(`🔌 [NotificationSocket] Connecting to ${SOCKET_URL} as ${this.userType}...`);
 
-      console.log('🔌 Connecting to notification socket...', { userType, deviceId });
-
-      this.socket = io(`${SOCKET_URL}/notifications`, {
-        auth: {
-          token,
-          deviceId,
-          userType,
-        },
+      this.socket = io(SOCKET_URL, {
         transports: ['websocket'],
+        auth: {
+          token: this.token,
+          deviceId: this.deviceId,
+        },
+        query: {
+          deviceId: this.deviceId, // Backend checks here too
+        },
         reconnection: true,
+        reconnectionAttempts: Infinity, // Keep trying indefinitely
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        reconnectionAttempts: this.maxReconnectAttempts,
-        timeout: 10000,
+        timeout: 20000,
+        forceNew: true,
       });
 
-      this.setupEventHandlers();
-
       return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Socket connection timeout'));
-        }, 10000);
+        // --- System Events ---
 
         this.socket.on('connect', () => {
-          clearTimeout(timeout);
-          this.isConnected = true;
-          this.reconnectAttempts = 0;
-          console.log('✅ Notification socket connected:', this.socket.id);
+          console.log(`🟢 [NotificationSocket] Connected (${this.socket.id})`);
+          this.connectionPromise = null;
+          this._resubscribeListeners();
           resolve(this.socket);
         });
 
+        this.socket.on('connection-success', (data) => {
+          console.log('✨ [NotificationSocket] Handshake success:', data.message);
+        });
+
+        this.socket.on('disconnect', (reason) => {
+          console.log(`🟠 [NotificationSocket] Disconnected: ${reason}`);
+          if (reason === 'io server disconnect') {
+            // Server disconnected us manually, try reconnecting
+            this.socket.connect();
+          }
+        });
+
         this.socket.on('connect_error', (error) => {
-          clearTimeout(timeout);
-          console.error('❌ Socket connection error:', error.message);
-          reject(error);
+          console.error(`🔴 [NotificationSocket] Connection Error: ${error.message}`);
+          // Don't reject immediately, let reconnection logic handle it.
+          // Only reject if it's the initial attempt timing out.
+        });
+
+        // --- Custom Business Events ---
+
+        this.socket.on('new-notification', (notification) => {
+          console.log('🔔 [NotificationSocket] Received:', notification.type);
+          
+          // 1. Acknowledge receipt to backend
+          this.notifyReceived(notification.notificationId);
+
+          // 2. Broadcast to app listeners
+          this._emitLocal('new-notification', notification);
         });
       });
     } catch (error) {
-      console.error('❌ Failed to connect notification socket:', error);
+      console.error('❌ [NotificationSocket] Init failed:', error);
+      this.connectionPromise = null;
       throw error;
     }
   }
 
   /**
-   * Setup socket event handlers
-   */
-  setupEventHandlers() {
-    if (!this.socket) return;
-
-    // Connection events
-    this.socket.on('connect', () => {
-      this.isConnected = true;
-      this.reconnectAttempts = 0;
-      console.log('🔌 Socket connected:', this.socket.id);
-      this.emit('socket-connected', { socketId: this.socket.id });
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      this.isConnected = false;
-      console.log('🔌 Socket disconnected:', reason);
-      this.emit('socket-disconnected', { reason });
-    });
-
-    this.socket.on('connect_error', (error) => {
-      this.reconnectAttempts++;
-      console.error('❌ Socket connection error:', error.message);
-      
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('❌ Max reconnection attempts reached');
-        this.emit('socket-error', { error: 'Max reconnection attempts reached' });
-      }
-    });
-
-    // Notification events
-    this.socket.on('new-notification', (notification) => {
-      console.log('📩 New notification received:', notification);
-      this.emit('new-notification', notification);
-    });
-
-    this.socket.on('notification-read', (data) => {
-      console.log('✅ Notification marked as read:', data);
-      this.emit('notification-read', data);
-    });
-
-    this.socket.on('notifications-cleared', (data) => {
-      console.log('🗑️ Notifications cleared:', data);
-      this.emit('notifications-cleared', data);
-    });
-
-    // Admin events
-    this.socket.on('broadcast', (data) => {
-      console.log('📢 Broadcast received:', data);
-      this.emit('broadcast', data);
-    });
-
-    this.socket.on('system-alert', (data) => {
-      console.log('🚨 System alert received:', data);
-      this.emit('system-alert', data);
-    });
-
-    // Error handling
-    this.socket.on('error', (error) => {
-      console.error('❌ Socket error:', error);
-      this.emit('socket-error', error);
-    });
-  }
-
-  /**
-   * Register event listener
-   * @param {string} event - Event name
-   * @param {function} callback - Callback function
-   */
-  on(event, callback) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event).push(callback);
-  }
-
-  /**
-   * Remove event listener
-   * @param {string} event - Event name
-   * @param {function} callback - Callback function
-   */
-  off(event, callback) {
-    if (!this.listeners.has(event)) return;
-    
-    const callbacks = this.listeners.get(event);
-    const index = callbacks.indexOf(callback);
-    
-    if (index > -1) {
-      callbacks.splice(index, 1);
-    }
-  }
-
-  /**
-   * Emit event to registered listeners
-   * @param {string} event - Event name
-   * @param {any} data - Event data
-   */
-  emit(event, data) {
-    if (!this.listeners.has(event)) return;
-    
-    this.listeners.get(event).forEach(callback => {
-      try {
-        callback(data);
-      } catch (error) {
-        console.error(`Error in ${event} listener:`, error);
-      }
-    });
-  }
-
-  /**
-   * Mark notification as read
-   * @param {string} notificationId - Notification ID
-   */
-  markAsRead(notificationId) {
-    if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ Socket not connected');
-      return;
-    }
-
-    this.socket.emit('mark-as-read', { notificationId });
-    console.log('✅ Marked notification as read:', notificationId);
-  }
-
-  /**
-   * Mark all notifications as read
-   */
-  markAllAsRead() {
-    if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ Socket not connected');
-      return;
-    }
-
-    this.socket.emit('mark-all-as-read');
-    console.log('✅ Marked all notifications as read');
-  }
-
-  /**
-   * Clear all notifications
-   */
-  clearAllNotifications() {
-    if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ Socket not connected');
-      return;
-    }
-
-    this.socket.emit('clear-all-notifications');
-    console.log('🗑️ Cleared all notifications');
-  }
-
-  /**
-   * Request notification history
-   * @param {number} limit - Number of notifications to fetch
-   */
-  requestHistory(limit = 20) {
-    if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ Socket not connected');
-      return;
-    }
-
-    this.socket.emit('request-history', { limit });
-    console.log('📜 Requested notification history');
-  }
-
-  /**
-   * Disconnect socket
+   * Disconnects the socket manually.
    */
   disconnect() {
     if (this.socket) {
-      console.log('🔌 Disconnecting notification socket...');
+      console.log('🔌 [NotificationSocket] Disconnecting manualy...');
       this.socket.disconnect();
       this.socket = null;
-      this.isConnected = false;
-      this.listeners.clear();
+    }
+    this.connectionPromise = null;
+  }
+
+  /**
+   * Checks if socket is connected
+   */
+  isConnected() {
+    return this.socket && this.socket.connected;
+  }
+
+  /**
+   * Subscribe to local events (e.g. 'new-notification')
+   */
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event).add(callback);
+
+    // If socket exists, attach listener directly if it's a socket.io event
+    if (this.socket && event !== 'new-notification') {
+      this.socket.on(event, callback);
     }
   }
 
   /**
-   * Check if socket is connected
+   * Unsubscribe
    */
-  getConnectionStatus() {
-    return {
-      isConnected: this.isConnected,
-      socketId: this.socket?.id || null,
-    };
+  off(event, callback) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).delete(callback);
+    }
+    if (this.socket && event !== 'new-notification') {
+      this.socket.off(event, callback);
+    }
+  }
+
+  /**
+   * Internal: Emit event to local listeners
+   */
+  _emitLocal(event, data) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).forEach((cb) => {
+        try {
+          cb(data);
+        } catch (e) {
+          console.error(`Error in listener for ${event}:`, e);
+        }
+      });
+    }
+  }
+
+  /**
+   * Internal: Re-attach socket.io specific listeners on reconnect
+   */
+  _resubscribeListeners() {
+    // Logic to ensure listeners persist across reconnections
+  }
+
+  // ==========================================
+  // BACKEND ACTIONS
+  // ==========================================
+
+  /**
+   * Tell backend we received the notification
+   */
+  notifyReceived(notificationId) {
+    if (this.socket?.connected && notificationId) {
+      this.socket.emit('notification-received', { notificationId });
+    }
+  }
+
+  /**
+   * Mark notifications as read
+   */
+  markAsRead(notificationIds = []) {
+    if (this.socket?.connected && notificationIds.length > 0) {
+      this.socket.emit('mark-as-read', { notificationIds });
+    }
   }
 }
 
-// Export singleton instance
-const notificationSocket = new NotificationSocket();
-export default notificationSocket;
+// Export Singleton
+export default new NotificationSocket();

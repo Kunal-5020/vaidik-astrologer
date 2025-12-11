@@ -34,6 +34,7 @@ export default function AccountSettingsScreen() {
           onPress: async () => {
             try {
               await logout();
+              navigate('Login');
             } catch (error) {
               console.error('❌ [AccountSettings] Logout error:', error);
               Alert.alert('Error', 'Failed to logout. Please try again.');

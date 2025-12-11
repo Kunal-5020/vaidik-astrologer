@@ -9,6 +9,7 @@
     countryCode: null,
     isOtpSent: false,
     isOtpVerified: false,
+    isNewUser: null,     
     existingRegistration: null,
     registrationData: null,
     currentStep: 1,
@@ -32,6 +33,7 @@
         return {
           ...state,
           isOtpVerified: true,
+          isNewUser: action.payload.isNewUser, 
           existingRegistration: action.payload.existingRegistration || null,
         };
       case 'SET_REGISTRATION_DATA':
@@ -125,36 +127,42 @@
    * Verify OTP
    */
   const verifyOtp = useCallback(async (data) => {
-    if (verifyOtpInProgress.current) {
-      console.log('⚠️ OTP verification already in progress');
-      return;
+  if (verifyOtpInProgress.current) {
+    console.log('⚠️ OTP verification already in progress');
+    return;
+  }
+
+  try {
+    verifyOtpInProgress.current = true;
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
+
+    const response = await registrationService.verifyOtp(data);
+
+    if (response.success && response.data.isValid) {
+      dispatch({
+        type: 'OTP_VERIFIED',
+        payload: {
+          isNewUser: response.data.isNewUser,
+          existingRegistration: response.data.existingRegistration,
+        },
+      });
+      console.log('✅ OTP verified successfully', response);
+
+      return response; // ✅ important
+    } else {
+      throw new Error('Invalid OTP');
     }
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    dispatch({ type: 'SET_ERROR', payload: errorMessage });
+    throw error;
+  } finally {
+    verifyOtpInProgress.current = false;
+    dispatch({ type: 'SET_LOADING', payload: false });
+  }
+}, []);
 
-    try {
-      verifyOtpInProgress.current = true;
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
-
-      const response = await registrationService.verifyOtp(data);
-
-      if (response.success && response.data.isValid) {
-        dispatch({ 
-          type: 'OTP_VERIFIED', 
-          payload: { existingRegistration: response.data.existingRegistration } 
-        });
-      } else {
-        throw new Error('Invalid OTP');
-      }
-
-      dispatch({ type: 'SET_LOADING', payload: false });
-    } catch (error) {
-      const errorMessage = getErrorMessage(error); // ✅ Use helper
-      dispatch({ type: 'SET_ERROR', payload: errorMessage });
-      throw error;
-    } finally {
-      verifyOtpInProgress.current = false;
-    }
-  }, []);
 
 
     /**

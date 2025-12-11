@@ -74,41 +74,76 @@ export const AuthProvider = ({ children }) => {
     restoreAuth();
   }, []);
 
+  /**
+   * Restore authentication with fresh profile fetch
+   */
   const restoreAuth = useCallback(async () => {
     try {
       console.log('🔍 [AuthContext] Restoring auth from storage...');
-      
-      const [accessToken, user, astrologer] = await Promise.all([
-        storageService.getItem(STORAGE_KEYS.ACCESS_TOKEN),
-        storageService.getObject(STORAGE_KEYS.USER_DATA),
-        storageService.getObject(STORAGE_KEYS.ASTROLOGER_DATA),
-      ]);
 
-      console.log('📊 [AuthContext] Restore check:', {
-        hasAccessToken: !!accessToken,
-        hasUser: !!user,
-        hasAstrologer: !!astrologer,
-        astrologerData: astrologer ? {
-          name: astrologer.name,
-          email: astrologer.email,
-          phone: astrologer.phoneNumber,
-          experienceYears: astrologer.experienceYears,
-          specializations: astrologer.specializations,
-          languages: astrologer.languages,
-        } : null,
-      });
+      const accessToken = await storageService.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 
-      if (accessToken && user && astrologer) {
-        dispatch({ 
-          type: 'RESTORE_AUTH', 
-          payload: { user, astrologer } 
-        });
-        console.log('✅ [AuthContext] Auth restored successfully');
-      } else {
-        console.log('ℹ️  [AuthContext] No complete auth data found - user needs to login');
+      if (!accessToken) {
+        console.log('ℹ️  [AuthContext] No access token - user needs to login');
+        return { isAuthenticated: false };
+      }
+
+      console.log('✅ [AuthContext] Access token found - fetching fresh profile...');
+
+      try {
+        // Fetch fresh profile from API
+        const profileResponse = await astrologerAuthService.fetchFreshProfile();
+
+        if (profileResponse.success) {
+          const { astrologer, isCached } = profileResponse;
+
+          dispatch({
+            type: 'RESTORE_AUTH',
+            payload: { astrologer },
+          });
+
+          console.log('✅ [AuthContext] Auth restored with fresh profile', {
+            astrologerId: astrologer?.id,
+            isCached: isCached || false,
+            experienceYears: astrologer?.experienceYears,
+            specializations: astrologer?.specializations?.length,
+          });
+
+          return { isAuthenticated: true, astrologer };
+        }
+      } catch (apiError) {
+        console.error('❌ [AuthContext] API fetch failed, trying cached data:', apiError);
+
+        // Fallback to cached data if API fails
+        // ✅ FIX: Added user fetch here to prevent crash in next step
+        const [user, astrologer] = await Promise.all([
+          storageService.getObject(STORAGE_KEYS.USER_DATA),
+          storageService.getObject(STORAGE_KEYS.ASTROLOGER_DATA),
+        ]);
+
+        if (user && astrologer) {
+          dispatch({
+            type: 'RESTORE_AUTH',
+            payload: { user, astrologer },
+          });
+
+          console.log('⚠️  [AuthContext] Auth restored with cached data');
+          return { isAuthenticated: true, user, astrologer, isCached: true };
+        }
+
+        // If both API and cache fail, logout
+        console.error('❌ [AuthContext] No valid auth data - clearing session');
+        await storageService.multiRemove([
+          STORAGE_KEYS.ACCESS_TOKEN,
+          STORAGE_KEYS.REFRESH_TOKEN,
+          STORAGE_KEYS.USER_DATA,
+          STORAGE_KEYS.ASTROLOGER_DATA,
+        ]);
+        return { isAuthenticated: false };
       }
     } catch (error) {
       console.error('❌ [AuthContext] Failed to restore auth:', error);
+      return { isAuthenticated: false };
     }
   }, []);
 
@@ -130,7 +165,7 @@ export const AuthProvider = ({ children }) => {
       if (response.success) {
         dispatch({ type: 'SET_PHONE', payload: data });
         dispatch({ type: 'OTP_SENT', payload: true });
-        
+
         await storageService.setObject(STORAGE_KEYS.PHONE_NUMBER, data);
         console.log('✅ [AuthContext] OTP sent successfully');
       }
@@ -157,19 +192,9 @@ export const AuthProvider = ({ children }) => {
 
       const response = await astrologerAuthService.verifyLoginOtp(data);
 
-      console.log('response',response);
-
-      console.log('📊 [AuthContext] Verify response structure:', {
-        success: response.success,
-        hasData: !!response.data,
-        hasTokens: !!response.data?.tokens,
-        hasUser: !!response.data?.user,
-        hasAstrologer: !!response.data?.astrologer,
-      });
-
       if (response.success && response.data) {
         const { tokens, user, astrologer } = response.data;
-        
+
         if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
           throw new Error('Invalid token structure from server');
         }
@@ -180,16 +205,7 @@ export const AuthProvider = ({ children }) => {
 
         const { accessToken, refreshToken } = tokens;
 
-        console.log('💾 [AuthContext] Saving login data to storage...', {
-          astrologerData: {
-            name: astrologer.name,
-            email: astrologer.email,
-            phone: astrologer.phoneNumber,
-            experienceYears: astrologer.experienceYears,
-            specializations: astrologer.specializations,
-            languages: astrologer.languages,
-          }
-        });
+        console.log('💾 [AuthContext] Saving login data to storage...');
 
         await Promise.all([
           storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
@@ -198,17 +214,12 @@ export const AuthProvider = ({ children }) => {
           storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, astrologer),
         ]);
 
-        console.log('✅ [AuthContext] All data saved successfully');
-
-        dispatch({ 
-          type: 'LOGIN_SUCCESS', 
-          payload: { user, astrologer } 
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: { user, astrologer },
         });
 
-        console.log('✅ [AuthContext] Login successful:', {
-          userId: user?.id,
-          astrologerId: astrologer?.id,
-        });
+        console.log('✅ [AuthContext] Login successful');
       } else {
         throw new Error('Invalid response structure from server');
       }
@@ -232,19 +243,10 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'CLEAR_ERROR' });
 
       console.log('📱 [AuthContext] Logging in with Truecaller...');
-      
+
       const response = await astrologerAuthService.verifyTruecaller(truecallerData);
-      
-      console.log('📊 [AuthContext] Truecaller response:', {
-        success: response.success,
-        hasData: !!response.data,
-        canLogin: response.data?.canLogin,
-        hasUser: !!response.data?.user,
-        hasAstrologer: !!response.data?.astrologer,
-      });
 
       if (response.success && response.data) {
-        // Check if astrologer account exists
         if (response.data.canLogin === false) {
           dispatch({ type: 'SET_LOADING', payload: false });
           return {
@@ -253,24 +255,13 @@ export const AuthProvider = ({ children }) => {
               canLogin: false,
               message: response.data.message,
               isNewUser: true,
-            }
+            },
           };
         }
 
-        // Astrologer exists - proceed with login
         const { tokens, user, astrologer } = response.data;
-        
-        if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
-          throw new Error('Invalid token structure from server');
-        }
-
-        if (!user || !astrologer) {
-          throw new Error('Missing user or astrologer data from Truecaller response');
-        }
 
         const { accessToken, refreshToken } = tokens;
-
-        console.log('💾 [AuthContext] Saving Truecaller login data...');
 
         await Promise.all([
           storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
@@ -279,20 +270,10 @@ export const AuthProvider = ({ children }) => {
           storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, astrologer),
         ]);
 
-        console.log('✅ [AuthContext] Truecaller data saved successfully');
-
-        dispatch({ 
-          type: 'LOGIN_SUCCESS', 
-          payload: { user, astrologer } 
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: { user, astrologer },
         });
-
-        console.log('✅ [AuthContext] Truecaller login successful:', {
-          userId: user?.id,
-          astrologerId: astrologer?.id,
-          isNewUser: response.data?.isNewUser,
-        });
-      } else {
-        throw new Error('Invalid response structure from server');
       }
 
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -301,41 +282,31 @@ export const AuthProvider = ({ children }) => {
       const errorMessage = error.formattedMessage || error.message || 'Truecaller login failed';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       dispatch({ type: 'SET_LOADING', payload: false });
-      console.error('❌ [AuthContext] Truecaller login error:', errorMessage);
       throw error;
     }
   }, []);
 
   /**
-   * ✅ NEW: Update astrologer data in context and storage
+   * Update astrologer data in context and storage
    */
   const updateAstrologer = useCallback(async (updates) => {
     try {
       console.log('🔄 [AuthContext] Updating astrologer data:', updates);
 
-      // Update context state
-      dispatch({ 
-        type: 'UPDATE_ASTROLOGER', 
-        payload: updates 
+      dispatch({
+        type: 'UPDATE_ASTROLOGER',
+        payload: updates,
       });
 
-      // Get current astrologer data from storage
       const currentAstrologer = await storageService.getObject(STORAGE_KEYS.ASTROLOGER_DATA);
-      
+
       if (currentAstrologer) {
-        // Merge updates with current data
         const updatedAstrologer = {
           ...currentAstrologer,
           ...updates,
         };
 
-        // Save back to storage
         await storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, updatedAstrologer);
-        
-        console.log('✅ [AuthContext] Astrologer data updated:', {
-          updatedFields: Object.keys(updates),
-          newData: updatedAstrologer,
-        });
       }
     } catch (error) {
       console.error('❌ [AuthContext] Failed to update astrologer:', error);
@@ -349,11 +320,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       console.log('🚪 [AuthContext] Starting logout...');
-      
       await astrologerAuthService.logout();
-      
-      console.log('💾 [AuthContext] Clearing stored data...');
-      
       await storageService.multiRemove([
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
@@ -361,13 +328,9 @@ export const AuthProvider = ({ children }) => {
         STORAGE_KEYS.ASTROLOGER_DATA,
         STORAGE_KEYS.PHONE_NUMBER,
       ]);
-      
       dispatch({ type: 'LOGOUT' });
-
-      console.log('✅ [AuthContext] Logout complete');
     } catch (error) {
       console.error('❌ [AuthContext] Logout error:', error);
-      // Still clear state even if API call fails
       await storageService.multiRemove([
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
@@ -379,17 +342,36 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  /**
+   * ✅ NEW: Get current Astrologer data
+   * Returns the astrologer object directly
+   */
+  const getAstrologer = useCallback(() => {
+    return state.astrologer;
+  }, [state.astrologer]);
+
   const value = useMemo(
     () => ({
       state,
+      astrologer: state.astrologer, // ✅ Exposed as a direct variable
+      getAstrologer,                // ✅ Exposed as a function
       sendLoginOtp,
       verifyLoginOtp,
       loginWithTruecaller,
       logout,
       restoreAuth,
-      updateAstrologer, // ✅ Added
+      updateAstrologer,
     }),
-    [state, sendLoginOtp, verifyLoginOtp, loginWithTruecaller, logout, restoreAuth, updateAstrologer]
+    [
+      state,
+      getAstrologer,
+      sendLoginOtp,
+      verifyLoginOtp,
+      loginWithTruecaller,
+      logout,
+      restoreAuth,
+      updateAstrologer,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

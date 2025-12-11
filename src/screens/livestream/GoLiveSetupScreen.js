@@ -30,10 +30,10 @@ const GoLiveSetupScreen = () => {
   const [permissionsReady, setPermissionsReady] = useState(false);
 
   const navigation = useNavigation();
-  const { user } = useAuth(); // Assuming user object from context
+  const { astrologer } = useAuth(); // Assuming user object from context
   
   // Auto-generated title logic handled by backend now, but we show preview
-  const generatedTitle = user?.name ? `${user.name}'s Stream` : 'Live Stream';
+  const generatedTitle = astrologer?.name ? `${astrologer.name}'s Stream` : 'Live Stream';
 
   // ===== PERMISSIONS =====
   useFocusEffect(

@@ -18,7 +18,7 @@ import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
+import { useTruecaller } from '@kartikbhalla/react-native-truecaller';
 import OTPStyles from '../../style/OTPStyle';
 
 const AstrologerOTPScreen = ({ navigation, route }) => {

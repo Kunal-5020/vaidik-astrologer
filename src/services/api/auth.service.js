@@ -5,6 +5,7 @@ import { STORAGE_KEYS } from '../../config/constants';
 import messaging from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
+import { Platform } from 'react-native';
 
 class AstrologerAuthService {
   constructor() {
@@ -307,6 +308,12 @@ class AstrologerAuthService {
       if (!enabled) {
         console.warn('⚠️  [AstrologerAuth] Notification permission not granted');
         return null;
+      }
+
+      // ✅ ADDED: Register for remote messages on iOS before getting token
+      if (Platform.OS === 'ios') {
+        console.log('🍎 [AstrologerAuth] Registering device for remote messages (iOS)...');
+        await messaging().registerDeviceForRemoteMessages();
       }
 
       const token = await messaging().getToken();

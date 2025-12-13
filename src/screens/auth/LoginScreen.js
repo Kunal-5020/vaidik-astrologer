@@ -20,7 +20,7 @@ import Toast from 'react-native-toast-message';
 import CountryCodePicker from '../../component/CountaryCodePickar';
 import { useAuth } from '../../contexts/AuthContext';
 import { astrologerAuthService } from '../../services';
-import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
+import { useTruecaller } from '@kartikbhalla/react-native-truecaller';
 
 const { width, height } = Dimensions.get('window');
 

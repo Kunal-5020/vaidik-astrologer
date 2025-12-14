@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  PermissionsAndroid, // Added PermissionsAndroid
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoginStyle from '../../style/LoginStyle';
@@ -20,7 +21,7 @@ import Toast from 'react-native-toast-message';
 import CountryCodePicker from '../../component/CountaryCodePickar';
 import { useAuth } from '../../contexts/AuthContext';
 import { astrologerAuthService } from '../../services';
-import { useTruecaller } from '@kartikbhalla/react-native-truecaller';
+import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,6 +45,9 @@ const Login = ({ navigation }) => {
     flag: 'https://flagcdn.com/w20/in.png',
   });
 
+  const styles = LoginStyle;
+
+  // ===== TRUECALLER CONFIGURATION =====
   const {
     initializeTruecallerSDK,
     openTruecallerForVerification,
@@ -51,14 +55,13 @@ const Login = ({ navigation }) => {
     error: truecallerError,
   } = useTruecaller({
     androidClientId: '4rxptw6rdoll4cvj6ccb4qobzofhuuznw-ablj5mb_m',
+    // iosAppKey: 'RxVOcf3b86650e63242daa6e612779e663014',
+    // iosAppLink: 'https://sie358da1f02ca425497d8c4a41cd0a8d6.truecallerdevs.com', 
     androidSuccessHandler: handleTruecallerSuccess,
     scopes: ['profile', 'phone', 'openid'],
   });
 
-  const styles = LoginStyle;
-
   // ===== INITIALIZATION =====
-
   useEffect(() => {
     const init = async () => {
       try {
@@ -74,23 +77,42 @@ const Login = ({ navigation }) => {
   useEffect(() => {
     if (truecallerError) {
       console.error('❌ Truecaller error:', truecallerError);
-      Alert.alert(
-        'Truecaller Error',
-        'Could not verify with Truecaller. Please use OTP login.'
-      );
+      if (truecallerError !== 'Truecaller SDK not initialized') {
+          Alert.alert(
+          'Truecaller Error',
+          'Could not verify with Truecaller. Please use OTP login.'
+        );
+      }
     }
   }, [truecallerError]);
 
   useEffect(() => {
     const setupFCMOnMount = async () => {
       try {
+        // ===== NEW: Explicitly Request Notification Permission (Android 13+) =====
+        if (Platform.OS === 'android' && Platform.Version >= 33) {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+          );
+          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('🔔 Notification permission granted');
+          } else {
+            console.warn('🔕 Notification permission denied');
+            Alert.alert(
+              'Permission Required',
+              'Please allow notifications to receive calls and chats.',
+              [{ text: 'OK' }]
+            );
+          }
+        }
+
         console.log('🎫 [Login] Setting up FCM...');
         const token = await astrologerAuthService.setupFCMToken();
         
         if (token) {
           console.log('✅ [Login] FCM token setup successful');
         } else {
-          console.warn('⚠️  [Login] FCM token is null');
+          console.warn('⚠️ [Login] FCM token is null');
         }
         
         setFcmSetupDone(true);
@@ -104,7 +126,6 @@ const Login = ({ navigation }) => {
   }, []);
 
   // ===== TRUECALLER HANDLER =====
-
   async function handleTruecallerSuccess(data) {
     try {
       console.log('🔄 [Login] Processing Truecaller data...');
@@ -112,6 +133,8 @@ const Login = ({ navigation }) => {
       const truecallerData = {
         authorizationCode: data.authorizationCode,
         codeVerifier: data.codeVerifier,
+        payload: data.payload, 
+        signature: data.signature,
       };
 
       const authResult = await loginWithTruecaller(truecallerData);
@@ -266,7 +289,7 @@ const Login = ({ navigation }) => {
       if (!isUsable) {
         Alert.alert(
           'Truecaller Not Available',
-          'Please install Truecaller app or use OTP verification.'
+          'Please install the Truecaller app to use this feature, or continue with OTP verification.'
         );
         return;
       }
@@ -282,7 +305,6 @@ const Login = ({ navigation }) => {
   const isLoading = state.isLoading || isCheckingPhone || !fcmSetupDone;
 
   // ===== RENDER =====
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView

@@ -170,11 +170,9 @@ const DashboardScreen = () => {
 
   const checkPricingSetup = useCallback(() => {
     if (!astrologer) return;
-    const { pricing } = astrologer;
-    const isChatRateSet = pricing?.chat && pricing.chat > 0;
-    const isCallRateSet = pricing?.call && pricing.call > 0;
+    console.log('🔍 [HomeScreen] Checking pricing setup...',astrologer);
 
-    if ((!isChatRateSet || !isCallRateSet) && !pricingChecked) {
+    if (astrologer.profileCompletion.isComplete === false) {
       setPricingChecked(true);
       showPricingAlert();
     }

@@ -1,4 +1,4 @@
-// src/screens/auth/AstrologerOTPScreen.js (UPDATED WITH YOUR THEME)
+// src/screens/auth/AstrologerOTPScreen.js (CLEANED)
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -11,18 +11,18 @@ import {
   Keyboard,
   BackHandler,
   Animated,
-  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTruecaller } from '@kartikbhalla/react-native-truecaller';
 import OTPStyles from '../../style/OTPStyle';
 
 const AstrologerOTPScreen = ({ navigation, route }) => {
-  const { sendLoginOtp, verifyLoginOtp, loginWithTruecaller, state } = useAuth();
+  // 1. Removed loginWithTruecaller from hook
+  const { sendLoginOtp, verifyLoginOtp, state } = useAuth();
+  
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -38,38 +38,6 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
 
   const styles = OTPStyles;
   const { phone, countryCode, phoneNumber } = route.params || {};
-
-  // ✅ Initialize Truecaller SDK
-  const {
-    initializeTruecallerSDK,
-    openTruecallerForVerification,
-    isSdkUsable,
-    error: truecallerError,
-  } = useTruecaller({
-    androidClientId: '4rxptw6rdoll4cvj6ccb4qobzofhuuznw-ablj5mb_m',
-    androidSuccessHandler: handleTruecallerSuccess,
-    scopes: ['profile', 'phone', 'openid'],
-  });
-
-  // ✅ Initialize Truecaller on mount
-  useEffect(() => {
-    const init = async () => {
-      try {
-        await initializeTruecallerSDK();
-        console.log('✅ Truecaller SDK initialized on OTP screen');
-      } catch (error) {
-        console.log('⚠️ Truecaller init failed on OTP screen:', error.message);
-      }
-    };
-    init();
-  }, []);
-
-  // ✅ Handle Truecaller errors
-  useEffect(() => {
-    if (truecallerError) {
-      console.error('❌ Truecaller error on OTP screen:', truecallerError);
-    }
-  }, [truecallerError]);
 
   // ✅ Fade-in animation on mount
   useEffect(() => {
@@ -183,86 +151,6 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
 
     return () => backHandler.remove();
   }, [navigation]);
-
-  /**
-   * ✅ Handle Truecaller success
-   */
-  async function handleTruecallerSuccess(data) {
-    try {
-      console.log('🔄 [OTPScreen] Processing Truecaller data...');
-
-      const truecallerData = {
-        authorizationCode: data.authorizationCode,
-        codeVerifier: data.codeVerifier,
-      };
-
-      console.log('📤 [OTPScreen] Sending to backend...');
-      setIsVerifying(true);
-
-      const authResult = await loginWithTruecaller(truecallerData);
-      
-      console.log('📥 [OTPScreen] Truecaller response:', {
-        success: authResult?.success,
-        canLogin: authResult?.data?.canLogin,
-        hasUser: !!authResult?.data?.user,
-        hasAstrologer: !!authResult?.data?.astrologer,
-      });
-
-      if (authResult && authResult.success) {
-        if (authResult.data.canLogin === false) {
-          console.log('⚠️ [OTPScreen] No astrologer account found');
-          Alert.alert(
-            'Account Not Found',
-            authResult.data.message + '\n\nWould you like to register as an astrologer?',
-            [
-              {
-                text: 'Register',
-                onPress: () => navigation.replace('RegisterPhone'),
-              },
-              {
-                text: 'Cancel',
-                style: 'cancel',
-              },
-            ]
-          );
-          return;
-        }
-
-        console.log('✅ [OTPScreen] Truecaller login successful');
-        
-        const astrologer = authResult.data?.astrologer;
-
-        if (!astrologer) {
-          throw new Error('Invalid response from server');
-        }
-
-        // Navigate based on profile completion
-        if (!astrologer.isProfileComplete) {
-          console.log('🔄 [OTPScreen] Navigating to Details screen');
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Home' }],
-          });
-        } else {
-          console.log('🔄 [OTPScreen] Navigating to main app');
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Home' }],
-          });
-        }
-      } else {
-        throw new Error(authResult?.message || 'Login failed');
-      }
-    } catch (error) {
-      console.error('❌ [OTPScreen] Truecaller login error:', error);
-      Alert.alert(
-        'Login Failed',
-        error.message || 'Could not complete Truecaller login. Please try OTP verification.'
-      );
-    } finally {
-      setIsVerifying(false);
-    }
-  }
 
   /**
    * ✅ Handle OTP input change
@@ -405,41 +293,12 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
     }
   };
 
-  /**
-   * ✅ Handle Truecaller button press
-   */
-  const handleTruecallerLogin = async () => {
-    try {
-      const isUsable = await isSdkUsable();
-
-      if (!isUsable) {
-        Alert.alert(
-          'Truecaller Not Available',
-          'Please install Truecaller app or continue with OTP verification.'
-        );
-        return;
-      }
-
-      console.log('📱 [OTPScreen] Opening Truecaller verification...');
-      await openTruecallerForVerification();
-    } catch (error) {
-      console.error('❌ Truecaller error:', error);
-      Alert.alert('Error', 'Could not open Truecaller. Please continue with OTP.');
-    }
-  };
-
   const handleBackPress = () => {
     navigation.goBack();
   };
 
   const isOtpComplete = otp.every(digit => digit !== '');
   const canSubmit = isOtpComplete && !isVerifying && !!deviceInfo;
-
-  // ✅ Animated glow opacity
-  const glowOpacity = glowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 0.5],
-  });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -545,28 +404,6 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
                   </TouchableOpacity>
                 )}
               </View>
-
-              {/* ✅ Divider */}
-              <View style={styles.dividerContainer}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>Or</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              {/* ✅ Truecaller Button */}
-              <TouchableOpacity
-                style={styles.truecallerButton}
-                disabled={isVerifying}
-                onPress={handleTruecallerLogin}
-              >
-                <Image
-                  source={require('../../assets/phone-call.png')}
-                  style={styles.truecallerIcon}
-                />
-                <Text style={styles.truecallerButtonText}>
-                  Verify with Truecaller
-                </Text>
-              </TouchableOpacity>
             </>
           ) : (
             <View style={styles.loadingContainer}>

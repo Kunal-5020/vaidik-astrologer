@@ -66,12 +66,15 @@ const ProfileScreen = ({ navigation }) => {
           style: 'destructive', 
           onPress: async () => {
             await logout();
-            navigate('Login');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }], 
+            });
           } 
         },
       ]
     );
-  }, [logout]);
+  }, [logout, navigation]);
 
   // Data Preparation
   const name = astrologer?.name || 'Astrologer';

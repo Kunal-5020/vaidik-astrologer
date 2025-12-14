@@ -193,14 +193,10 @@ export const AuthProvider = ({ children }) => {
       const response = await astrologerAuthService.verifyLoginOtp(data);
 
       if (response.success && response.data) {
-        const { tokens, user, astrologer } = response.data;
+        const { tokens, astrologer } = response.data;
 
         if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
           throw new Error('Invalid token structure from server');
-        }
-
-        if (!user || !astrologer) {
-          throw new Error('Missing user or astrologer data');
         }
 
         const { accessToken, refreshToken } = tokens;
@@ -210,13 +206,12 @@ export const AuthProvider = ({ children }) => {
         await Promise.all([
           storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
           storageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
-          storageService.setObject(STORAGE_KEYS.USER_DATA, user),
           storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, astrologer),
         ]);
 
         dispatch({
           type: 'LOGIN_SUCCESS',
-          payload: { user, astrologer },
+          payload: { astrologer },
         });
 
         console.log('✅ [AuthContext] Login successful');
@@ -259,20 +254,19 @@ export const AuthProvider = ({ children }) => {
           };
         }
 
-        const { tokens, user, astrologer } = response.data;
+        const { tokens, astrologer } = response.data;
 
         const { accessToken, refreshToken } = tokens;
 
         await Promise.all([
           storageService.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
           storageService.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
-          storageService.setObject(STORAGE_KEYS.USER_DATA, user),
           storageService.setObject(STORAGE_KEYS.ASTROLOGER_DATA, astrologer),
         ]);
 
         dispatch({
           type: 'LOGIN_SUCCESS',
-          payload: { user, astrologer },
+          payload: { astrologer },
         });
       }
 

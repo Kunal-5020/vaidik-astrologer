@@ -134,8 +134,10 @@ const handleOpenDetail = (item) => {
   // ✅ 1. VALIDATION CHECK
   // Check if item exists AND if orderId exists
   if (!item || !item.orderId) {
-    console.warn('❌ Cannot open detail: Missing Order ID', item);
-    Alert.alert("Error", "Cannot open details. Order ID is missing.");
+    Alert.alert(
+        "Session Details", 
+        "Details for this session are not available (incomplete or not recorded)."
+      );
     return; // Stop execution here
   }
 
@@ -155,7 +157,7 @@ const handleOpenDetail = (item) => {
   const renderItem = ({ item }) => {
     const isChat = item.type === 'chat' || item.type === 'conversation';
     const isActive = ['active', 'initiated', 'waiting', 'waitinginqueue'].includes(item.status || '');
-
+    const hasDetails = !!item.orderId;
     const iconName = isChat ? 'chatbubble' : 'call';
     const iconColor = isChat ? '#2196F3' : '#4CAF50';
     const bgColor = isChat ? '#E3F2FD' : '#E8F5E9';
@@ -208,7 +210,11 @@ const handleOpenDetail = (item) => {
               {isActive ? 'Active' : 'Completed'}
             </Text>
           </View>
-          <Text style={styles.viewText}>View</Text>
+          {hasDetails ? (
+            <Text style={styles.viewText}>View</Text>
+          ) : (
+             <Text style={styles.noDetailsText}>No Rec</Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -466,6 +472,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#5A2CCF',
     fontWeight: '600',
+  },
+  itemCardDisabled: {
+    opacity: 0.7,
+    backgroundColor: '#FAFAFA',
+  },
+  bubbleDisabled: {
+    backgroundColor: '#E0E0E0',
+  },
+  textDisabled: {
+    color: '#777',
+  },
+  noDetailsText: {
+    fontSize: 11,
+    color: '#999', // Grey text indicates it's not clickable/error
+    fontWeight: '500',
+    fontStyle: 'italic'
   },
 });
 

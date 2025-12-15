@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,11 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  FlatList,
   RefreshControl,
   Alert,
   ActivityIndicator,
   Dimensions,
+  InteractionManager, // ✅ Import for transition handling
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import OnlineOfflineButton from '../../component/OnilneOffilneButton';
@@ -19,7 +19,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { livestreamService } from '../../services';
 import { astrologerService } from '../../services/api/astrologer.service';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// ✅ Import Order Service
 import astrologerOrderService from '../../services/api/astrologer-order.service';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -36,7 +35,10 @@ const DashboardScreen = () => {
   const [hasLiveStream, setHasLiveStream] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [pricingChecked, setPricingChecked] = useState(false);
+  
+  // ✅ Use ref to track if screen is fully mounted
+  const isMountedRef = useRef(false);
+  const hasShownAlertRef = useRef(false); // ✅ Track if alert was already shown
 
   const astrologer = state.astrologer;
   const profilePicture = astrologer?.profilePicture;
@@ -57,6 +59,15 @@ const DashboardScreen = () => {
   const displayName = getDisplayName();
 
   const showPricingAlert = useCallback(() => {
+    // ✅ Prevent showing alert multiple times
+    if (hasShownAlertRef.current) {
+      console.log('⏭️ [HomeScreen] Alert already shown, skipping');
+      return;
+    }
+
+    console.log('📢 [HomeScreen] Showing pricing setup alert');
+    hasShownAlertRef.current = true;
+
     Alert.alert(
       'Setup Required',
       'Please set your chat and call rates to start accepting consultations.',
@@ -78,14 +89,6 @@ const DashboardScreen = () => {
       ],
       { cancelable: false }
     );
-  }, [navigation]);
-
-  const handleSessionExpiry = useCallback(() => {
-    setError('Session expired. Please login again.');
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Login' }],
-    });
   }, [navigation]);
 
   // Helper to format duration
@@ -115,7 +118,9 @@ const DashboardScreen = () => {
         if (statsResponse?.success) {
           setStats(statsResponse.data);
         }
-      } catch (e) { console.error('Stats error:', e.message); }
+      } catch (e) { 
+        console.error('Stats error:', e.message); 
+      }
 
       // 2. Fetch Earnings
       try {
@@ -123,7 +128,9 @@ const DashboardScreen = () => {
         if (earningsResponse?.success) {
           setEarnings(earningsResponse.data);
         }
-      } catch (e) { console.error('Earnings error:', e.message); }
+      } catch (e) { 
+        console.error('Earnings error:', e.message); 
+      }
 
       // 3. Fetch Streams
       try {
@@ -133,21 +140,25 @@ const DashboardScreen = () => {
           const liveStream = streamsResponse.data.streams.find(s => s.status === 'live');
           setHasLiveStream(!!liveStream);
         }
-      } catch (e) { console.error('Streams error:', e.message); }
+      } catch (e) { 
+        console.error('Streams error:', e.message); 
+      }
 
-      // 4. ✅ Fetch Recent Orders using astrologerOrderService
+      // 4. Fetch Recent Orders
       try {
         console.log('📦 [HomeScreen] Fetching recent orders...');
-        const ordersResponse = await astrologerOrderService.getAstrologerOrders({ page: 1, limit: 5 });
+        const ordersResponse = await astrologerOrderService.getAstrologerOrders({ 
+          page: 1, 
+          limit: 5 
+        });
         
         if (ordersResponse.success && ordersResponse.orders) {
-          // Normalize data for the UI
           const formattedOrders = ordersResponse.orders.map(order => ({
             id: order.orderId,
             customerName: order.userId?.name || 'User',
             customerImage: order.userId?.profileImage || order.userId?.profilePicture,
             amount: order.totalAmount || 0,
-            type: 'Chat/Call', // You can derive this from order.type if available
+            type: order.serviceType || 'Chat/Call',
             duration: formatDuration(order.totalUsedDurationSeconds),
             date: order.createdAt
           }));
@@ -168,15 +179,31 @@ const DashboardScreen = () => {
     }
   }, [state.isAuthenticated, state.astrologer, refreshing]);
 
+  // ✅ FIXED: Delayed pricing check with proper timing
   const checkPricingSetup = useCallback(() => {
-    if (!astrologer) return;
-    console.log('🔍 [HomeScreen] Checking pricing setup...',astrologer);
-
-    if (astrologer.profileCompletion.isComplete === false) {
-      setPricingChecked(true);
-      showPricingAlert();
+    if (!astrologer || !isMountedRef.current) {
+      console.log('⏸️ [HomeScreen] Screen not ready for pricing check');
+      return;
     }
-  }, [astrologer, pricingChecked, showPricingAlert]);
+
+    console.log('🔍 [HomeScreen] Checking pricing setup...', {
+      profileComplete: astrologer.profileCompletion?.isComplete,
+      hasShownAlert: hasShownAlertRef.current,
+    });
+
+    // Only show if profile is incomplete and alert hasn't been shown
+    if (astrologer.profileCompletion?.isComplete === false && !hasShownAlertRef.current) {
+      // ✅ Use InteractionManager to wait for animations to complete
+      InteractionManager.runAfterInteractions(() => {
+        // ✅ Add additional delay to ensure screen is fully loaded
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            showPricingAlert();
+          }
+        }, 800); // 800ms delay after interactions complete
+      });
+    }
+  }, [astrologer, showPricingAlert]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -203,12 +230,33 @@ const DashboardScreen = () => {
     navigation.navigate('Notifications');
   }, [navigation]);
 
+  // ✅ FIXED: Proper lifecycle management
   useFocusEffect(
     useCallback(() => {
-      checkPricingSetup();
-      fetchData();
-    }, [checkPricingSetup, fetchData])
+      console.log('🎯 [HomeScreen] Screen focused');
+      isMountedRef.current = true;
+
+      // Fetch data first
+      fetchData().then(() => {
+        // Only check pricing after data is loaded
+        if (!loading) {
+          checkPricingSetup();
+        }
+      });
+
+      return () => {
+        console.log('👋 [HomeScreen] Screen unfocused');
+        isMountedRef.current = false;
+      };
+    }, [fetchData, checkPricingSetup, loading])
   );
+
+  // ✅ Reset alert flag when astrologer changes (e.g., after profile update)
+  useEffect(() => {
+    if (astrologer?.profileCompletion?.isComplete === true) {
+      hasShownAlertRef.current = false;
+    }
+  }, [astrologer?.profileCompletion?.isComplete]);
 
   // Derived Stats
   const totalOrders = stats?.totalOrders || 0;
@@ -218,6 +266,7 @@ const DashboardScreen = () => {
   const totalEarnedVal = earnings?.totalEarned || 0;
   const totalMinutes = stats?.totalMinutes || 0;
 
+  // ✅ Show loading state while fetching initial data
   if (loading && !stats && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -384,7 +433,7 @@ const DashboardScreen = () => {
             </>
           )}
 
-          {/* ✅ Recent Orders Section */}
+          {/* Recent Orders */}
           {recentOrders && recentOrders.length > 0 && (
             <>
               <Text style={styles.recentTitle}>Recent Orders</Text>
@@ -393,10 +442,6 @@ const DashboardScreen = () => {
                   key={item.id}
                   style={styles.activityCard}
                   activeOpacity={0.7}
-                  onPress={() => {
-                     // Optionally navigate to history
-                     // navigation.navigate('AstroHistoryChat', { orderId: item.id });
-                  }}
                 >
                   <Image
                     source={
@@ -437,6 +482,7 @@ const DashboardScreen = () => {
 
 export default DashboardScreen;
 
+// ... (styles remain the same)
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F5F6FA' },
   container: { flex: 1, backgroundColor: '#F5F6FA' },

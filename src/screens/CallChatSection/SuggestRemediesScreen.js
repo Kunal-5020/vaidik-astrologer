@@ -121,58 +121,67 @@ const SuggestRemediesScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    const items = Array.from(selectedProducts.values());
+  const items = Array.from(selectedProducts.values());
 
-    // ✅ FIXED: Check for trimmed empty strings
-    const incomplete = items.filter((i) => !i.recommendationReason?.trim());
-    if (incomplete.length > 0) {
+  // ✅ FIXED: Validation matches Backend DTO (@MinLength(10))
+  // Check for empty OR too short reasons
+  const incomplete = items.filter(
+    (i) => !i.recommendationReason?.trim() || i.recommendationReason.trim().length < 10
+  );
+
+  if (incomplete.length > 0) {
+    Alert.alert(
+      'Validation Error',
+      `Recommendation reason must be at least 10 characters long.\n\nPlease update ${incomplete.length} product(s).`,
+      [
+        { text: 'OK' },
+        {
+          text: 'Go Back to Edit',
+          onPress: () => setShowDetailsModal(true),
+        },
+      ],
+    );
+    return;
+  }
+
+  try {
+    setSubmitting(true);
+
+    const payload = items.map((item) => ({
+      shopifyProductId: item.shopifyProductId,
+      shopifyVariantId: item.shopifyVariantId,
+      recommendationReason: item.recommendationReason,
+      usageInstructions: item.usageInstructions || '',
+      suggestedInChannel: item.suggestedInChannel,
+    }));
+
+    const res = await RemediesBackendService.suggestBulkRemedies(
+      userId,
+      orderId,
+      payload,
+    );
+
+    // Backend service handles success/fail, but let's double check
+    if (res && (res.success || res.data)) {
       Alert.alert(
-        'Incomplete',
-        `Please add recommendation reason for ${incomplete.length} product${incomplete.length > 1 ? 's' : ''}`,
-        [
-          { text: 'OK' },
-          {
-            text: 'Go Back to Edit',
-            onPress: () => setShowDetailsModal(true),
-          },
-        ],
+        'Success ✅',
+        `${items.length} remedies suggested successfully!`,
+        [{ text: 'Done', onPress: () => navigation.goBack() }],
       );
-      return;
+    } else {
+      // Show specific error from backend if available
+      const msg = res.message || 'Failed to suggest remedies';
+      Alert.alert('Error ❌', typeof msg === 'string' ? msg : JSON.stringify(msg));
     }
-
-    try {
-      setSubmitting(true);
-
-      const payload = items.map((item) => ({
-        shopifyProductId: item.shopifyProductId,
-        shopifyVariantId: item.shopifyVariantId,
-        recommendationReason: item.recommendationReason,
-        usageInstructions: item.usageInstructions || '',
-        suggestedInChannel: item.suggestedInChannel,
-      }));
-
-      const res = await RemediesBackendService.suggestBulkRemedies(
-        userId,
-        orderId,
-        payload,
-      );
-
-      if (res.success) {
-        Alert.alert(
-          'Success ✅',
-          `${items.length} remedies suggested successfully!`,
-          [{ text: 'Done', onPress: () => navigation.goBack() }],
-        );
-      } else {
-        Alert.alert('Error ❌', res.message || 'Failed to suggest remedies');
-      }
-    } catch (e) {
-      console.log('handleSubmit error:', e);
-      Alert.alert('Error ❌', 'Failed to suggest remedies. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  } catch (e) {
+    console.log('handleSubmit error:', e);
+    // Try to extract backend error message
+    const errorMsg = e.response?.data?.message || e.message || 'Failed to suggest remedies. Please try again.';
+    Alert.alert('Error ❌', Array.isArray(errorMsg) ? errorMsg.join('\n') : errorMsg);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const filteredProducts = products.filter((p) =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()),

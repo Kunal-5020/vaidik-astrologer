@@ -38,6 +38,8 @@ import PayoutDetailsScreen from '../screens/wallet/PayoutDetailsScreen';
 import AddBankAccountScreen from '../screens/wallet/AddBankAccountScreen';
 import AstroHistoryChatScreen from '../screens/CallChatSection/AstroHistoryChatScreen';
 import SuggestRemediesScreen from '../screens/CallChatSection/SuggestRemediesScreen';
+import AstrologerReviewsScreen from '../screens/CallChatSection/AstrologerReviewsScreen';
+import AstrologerSuggestedRemediesScreen from '../screens/CallChatSection/AstrologerSuggestedRemediesScreen';
 
 const Stack = createStackNavigator();
 
@@ -122,6 +124,18 @@ const AppNavigation = () => {
       <Stack.Screen 
         name="SuggestRemedies" 
         component={SuggestRemediesScreen}
+        options={{ headerShown: false, animationEnabled: true }}
+      />
+
+      <Stack.Screen 
+        name="AstrologerReviews" 
+        component={AstrologerReviewsScreen}
+        options={{ headerShown: false, animationEnabled: true }}
+      />
+
+      <Stack.Screen 
+        name="AstrologerSuggestedRemedies" 
+        component={AstrologerSuggestedRemediesScreen}
         options={{ headerShown: false, animationEnabled: true }}
       />
 

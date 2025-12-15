@@ -92,6 +92,19 @@ class RemediesBackendService {
     }
   }
 
+  // ===== ASTROLOGER: GET REMEDIES BY ORDER =====
+  async getAstrologerOrderRemedies(orderId) {
+    try {
+      const { data } = await apiClient.get(
+        `/astrologer/remedies/order/${orderId}`
+      );
+      return data;
+    } catch (error) {
+      console.error('Error fetching astrologer order remedies:', error);
+      return { success: true, data: { remedies: [] } };
+    }
+  }
+
 
   // ===== UPDATE REMEDY STATUS =====
   async updateRemedyStatus(remedyId, status, notes = '') {

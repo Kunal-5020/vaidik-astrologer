@@ -261,10 +261,6 @@ const CallScreen = ({ route, navigation }) => {
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>LIVE</Text>
         </View>
-        <View style={styles.earnPill}>
-          <Text style={styles.earnLabel}>Earned:</Text>
-          <Text style={styles.earnValue}>₹{currentEarnings}</Text>
-        </View>
       </View>
 
       {/* CONTENT */}

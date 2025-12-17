@@ -89,7 +89,7 @@ const ProfileScreen = ({ navigation }) => {
   const totalReviews = ratings.total || 0;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar backgroundColor="#372643" barStyle="light-content" />
       
       <View style={styles.container}>

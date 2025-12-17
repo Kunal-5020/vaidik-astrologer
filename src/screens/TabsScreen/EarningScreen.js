@@ -145,7 +145,7 @@ const EarningsReportScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={styles.outerContainer} edges={['bottom']}>
+    <SafeAreaView style={styles.outerContainer} edges={['bottom', 'top']}>
       {loading && !hasData ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#372643" />
@@ -374,7 +374,7 @@ export default EarningsReportScreen;
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: '#F5F6FA',
+    backgroundColor: '#372643',
   },
 
   loadingContainer: {

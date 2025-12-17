@@ -26,6 +26,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const DashboardScreen = () => {
   const navigation = useNavigation();
   const { state } = useAuth();
+  const astrologerId = state.astrologer?._id || state.astrologer?.id;
 
   const [stats, setStats] = useState(null);
   const [earnings, setEarnings] = useState(null);
@@ -98,7 +99,7 @@ const DashboardScreen = () => {
     return `${mins} min`;
   };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
     try {
       if (!refreshing) setLoading(true);
       setError(null);
@@ -177,7 +178,7 @@ const DashboardScreen = () => {
       setError('Failed to load dashboard');
       setLoading(false);
     }
-  }, [state.isAuthenticated, state.astrologer, refreshing]);
+  }, [state.isAuthenticated, astrologerId]);
 
   // ✅ FIXED: Delayed pricing check with proper timing
   const checkPricingSetup = useCallback(() => {
@@ -231,25 +232,23 @@ const DashboardScreen = () => {
   }, [navigation]);
 
   // ✅ FIXED: Proper lifecycle management
-  useFocusEffect(
-    useCallback(() => {
-      console.log('🎯 [HomeScreen] Screen focused');
-      isMountedRef.current = true;
+ useFocusEffect(
+  useCallback(() => {
+    isMountedRef.current = true;
 
-      // Fetch data first
-      fetchData().then(() => {
-        // Only check pricing after data is loaded
-        if (!loading) {
-          checkPricingSetup();
-        }
-      });
+    let isActive = true;
+    const run = async () => {
+      await fetchData();        // fetch once per focus
+      if (isActive) checkPricingSetup(); // run after fetch completes
+    };
+    run();
 
-      return () => {
-        console.log('👋 [HomeScreen] Screen unfocused');
-        isMountedRef.current = false;
-      };
-    }, [fetchData, checkPricingSetup, loading])
-  );
+    return () => {
+      isActive = false;
+      isMountedRef.current = false;
+    };
+  }, [fetchData, checkPricingSetup]) // ✅ removed loading
+);
 
   // ✅ Reset alert flag when astrologer changes (e.g., after profile update)
   useEffect(() => {
@@ -279,7 +278,7 @@ const DashboardScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.headerContainer}>
@@ -484,7 +483,7 @@ export default DashboardScreen;
 
 // ... (styles remain the same)
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F5F6FA' },
+  safeArea: { flex: 1, backgroundColor: '#372643' },
   container: { flex: 1, backgroundColor: '#F5F6FA' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12, fontSize: 14, color: '#6B7280' },

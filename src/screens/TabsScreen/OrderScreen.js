@@ -228,7 +228,7 @@ const handleOpenDetail = (item) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar backgroundColor="#5A2CCF" barStyle="light-content" />
       
       {/* Purple header */}
@@ -299,7 +299,7 @@ const handleOpenDetail = (item) => {
 
 // ✅ Styles unchanged (same as your original)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, backgroundColor: '#372643' },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   header: {
-    backgroundColor: '#5A2CCF',
+    backgroundColor: '#372643',
     padding: 20,
     paddingBottom: 16,
     borderBottomLeftRadius: 24,

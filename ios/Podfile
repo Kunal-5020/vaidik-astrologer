@@ -35,6 +35,8 @@ target 'VaidikAstrologers' do
   pod 'FirebaseMessaging', :modular_headers => true
   pod 'FirebaseInstallations', :modular_headers => true
 
+  pod 'RNVectorIcons', :path => '../node_modules/react-native-vector-icons'
+
   post_install do |installer|
     react_native_post_install(
       installer,

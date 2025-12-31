@@ -23,11 +23,13 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
 
     <!-- For Android 12+ -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
     <application
       android:name=".MainApplication"
@@ -55,29 +57,6 @@
         </intent-filter>
       </activity>
 
-      <!-- ✅ Incoming Call Activity -->
-      <!-- <activity
-          android:name=".IncomingCallActivity"
-          android:showOnLockScreen="true"
-          android:turnScreenOn="true"
-          android:exported="true"
-          android:excludeFromRecents="true"
-          android:launchMode="singleTask"
-          android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-          <intent-filter>
-              <action android:name="INCOMING_CALL" />
-              <category android:name="android.intent.category.DEFAULT" />
-          </intent-filter>
-      </activity> -->
-
-      <!-- ✅ Firebase Messaging Service (CRITICAL) -->
-      <service
-        android:name=".MyFirebaseMessagingService"
-        android:exported="false">
-        <intent-filter>
-          <action android:name="com.google.firebase.MESSAGING_EVENT" />
-        </intent-filter>
-      </service>
 
       <!-- ✅ TrueCaller -->
       <meta-data
@@ -87,7 +66,7 @@
       <!-- ✅ Firebase Metadata -->
       <meta-data
         android:name="com.google.firebase.messaging.default_notification_channel_id"
-        android:value="vaidik_talk_notifications"
+        android:value="astro_call_channel_v2"
         tools:replace="android:value" />
 
       <meta-data

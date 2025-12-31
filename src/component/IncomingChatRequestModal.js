@@ -1,97 +1,64 @@
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Dimensions,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons'; // Assuming you have this installed
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const { width } = Dimensions.get('window');
 
 const IncomingChatRequestModal = ({ visible, request, onAccept, onReject }) => {
   if (!visible || !request) return null;
 
-  const {
-    userName = 'User',
-    userProfilePic,
-    ratePerMinute = 0,
-    userQuestion, // If passed
-  } = request;
-
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
       <View style={styles.overlay}>
         <View style={styles.card}>
           
-          {/* --- HEADER: User Info --- */}
-          <View style={styles.avatarContainer}>
-            {userProfilePic ? (
-              <Image source={{ uri: userProfilePic }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>
-                  {userName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <View style={styles.onlineBadge} />
+          {/* Header Bar */}
+          <View style={styles.headerBar}>
+            <View style={styles.liveIndicator}>
+              <View style={styles.dot} />
+              <Text style={styles.liveText}>LIVE REQUEST</Text>
+            </View>
+            <Text style={styles.timerText}>Expires in 45s</Text>
           </View>
 
-          <Text style={styles.userName} numberOfLines={1}>
-            {userName}
-          </Text>
-          
-          <Text style={styles.incomingText}>Incoming Chat Request...</Text>
+          {/* User Section */}
+          <View style={styles.userSection}>
+            <View style={styles.avatarContainer}>
+              {request.userProfilePic ? (
+                <Image source={{ uri: request.userProfilePic }} style={styles.avatar} />
+              ) : (
+                <Text style={styles.avatarInitial}>{request.userName?.charAt(0)}</Text>
+              )}
+              <View style={styles.onlineBadge} />
+            </View>
+            <View>
+              <Text style={styles.userName}>{request.userName}</Text>
+              <Text style={styles.subText}>wants to chat with you</Text>
+            </View>
+          </View>
 
-          {/* --- DETAILS: Rate & Earnings --- */}
-          <View style={styles.detailsContainer}>
-            <View style={styles.detailItem}>
-              <Icon name="currency-rupee" size={16} color="#333" />
-              <Text style={styles.detailText}>{ratePerMinute}/min</Text>
-              <Text style={styles.detailLabel}>Rate</Text>
+          {/* Earnings Card */}
+          <View style={styles.earningsCard}>
+            <View style={styles.earningItem}>
+              <Text style={styles.earningLabel}>Earning Rate</Text>
+              <Text style={styles.earningValue}>₹{request.ratePerMinute}/min</Text>
             </View>
             <View style={styles.divider} />
-            <View style={styles.detailItem}>
-              <Icon name="schedule" size={16} color="#333" />
-              <Text style={styles.detailText}>5 mins</Text>
-              <Text style={styles.detailLabel}>Min Duration</Text>
+            <View style={styles.earningItem}>
+              <Text style={styles.earningLabel}>Duration</Text>
+              <Text style={styles.earningValue}>5 Mins</Text>
             </View>
           </View>
 
-          {/* --- OPTIONAL: Question Preview --- */}
-          {userQuestion && (
-            <View style={styles.questionBox}>
-              <Text style={styles.questionLabel}>Question:</Text>
-              <Text style={styles.questionText} numberOfLines={2}>
-                {userQuestion}
-              </Text>
-            </View>
-          )}
-
-          {/* --- ACTIONS --- */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity 
-              style={[styles.btn, styles.rejectBtn]} 
-              onPress={onReject}
-              activeOpacity={0.8}
-            >
-              <Icon name="close" size={24} color="#FFF" />
-              <Text style={styles.btnText}>Reject</Text>
+          {/* Buttons */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.rejectBtn} onPress={onReject}>
+              <Text style={styles.rejectText}>Decline</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.btn, styles.acceptBtn]} 
-              onPress={onAccept}
-              activeOpacity={0.8}
-            >
-              <View style={styles.iconCircle}>
-                 <Icon name="chat" size={20} color="#4CAF50" />
-              </View>
+            <TouchableOpacity style={styles.acceptBtn} onPress={onAccept}>
               <Text style={styles.acceptText}>Accept Chat</Text>
+              <Icon name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 5 }} />
             </TouchableOpacity>
           </View>
 
@@ -104,175 +71,147 @@ const IncomingChatRequestModal = ({ visible, request, onAccept, onReject }) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)', // Darker dim for better focus
-    justifyContent: 'flex-end', // Slide up from bottom looks more modern
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
+    elevation: 20,
   },
-  
-  // Avatar
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F44336',
+    marginRight: 6,
+  },
+  liveText: {
+    color: '#F44336',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  timerText: {
+    color: '#666',
+    fontSize: 12,
+  },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   avatarContainer: {
-    marginBottom: 12,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F3E5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
     position: 'relative',
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#FFD700', // Gold border
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFE87A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFD700',
-  },
-  avatarText: {
-    fontSize: 32,
+  avatarInitial: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#5D4037',
+    color: '#7B1FA2',
   },
   onlineBadge: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: '#4CAF50',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#FFF',
   },
-
-  // Texts
   userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1E293B',
   },
-  incomingText: {
+  subText: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-    fontStyle: 'italic',
-    // Using a simple pulse animation logic here requires Reanimated, 
-    // keeping it simple for now.
+    color: '#64748B',
   },
-
-  // Details Row
-  detailsContainer: {
+  earningsCard: {
     flexDirection: 'row',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    padding: 12,
-    width: '100%',
-    justifyContent: 'space-around',
-    marginBottom: 20,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  detailItem: {
+  earningItem: {
+    flex: 1,
     alignItems: 'center',
   },
   divider: {
     width: 1,
-    backgroundColor: '#DDD',
-    height: '80%',
-    alignSelf: 'center',
+    backgroundColor: '#E2E8F0',
   },
-  detailText: {
+  earningLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  earningValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#333',
-    marginTop: 4,
+    color: '#0F172A',
   },
-  detailLabel: {
-    fontSize: 12,
-    color: '#888',
-  },
-
-  // Question Box
-  questionBox: {
-    width: '100%',
-    backgroundColor: '#FFF9C4',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderLeftWidth: 3,
-    borderLeftColor: '#FFC107',
-  },
-  questionLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#F57F17',
-    marginBottom: 2,
-  },
-  questionText: {
-    fontSize: 14,
-    color: '#333',
-  },
-
-  // Actions
-  actionRow: {
+  buttonRow: {
     flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    gap: 15,
-  },
-  btn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
+    gap: 16,
   },
   rejectBtn: {
-    backgroundColor: '#FFEBEE',
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FFCDD2',
+    borderColor: '#EF4444',
+    alignItems: 'center',
   },
-  btnText: {
-    color: '#D32F2F',
-    fontWeight: '700',
+  rejectText: {
+    color: '#EF4444',
+    fontWeight: '600',
     fontSize: 16,
-    marginLeft: 8,
   },
-  
   acceptBtn: {
-    backgroundColor: '#4CAF50',
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#fff',
+    flex: 2,
+    backgroundColor: '#22C55E',
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    elevation: 4,
   },
   acceptText: {
-    color: '#fff',
+    color: '#FFF',
     fontWeight: '700',
     fontSize: 16,
   },

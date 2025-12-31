@@ -23,6 +23,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import AstrologerChatSocket from '../../services/socket/AstrologerChatSocket';
 import ChatService from '../../services/api/chat/ChatService';
 import AudioMessageBubble from '../../component/chat/AudioMessageBubble';
+import { useSession } from '../../contexts/SessionContext';
 
 const { width } = Dimensions.get('window');
 
@@ -49,6 +50,7 @@ const AstroChatRoom = ({ route, navigation }) => {
   const astrologerId = astrologer?._id || astrologer?.id;
 
   const { sessionId, orderId, userId } = route.params || {};
+  const { startSession, endSession } = useSession();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -74,6 +76,10 @@ const AstroChatRoom = ({ route, navigation }) => {
     const ss = String(s % 60).padStart(2, '0');
     return `${mm}:${ss}`;
   };
+
+  useEffect(() => {
+    startSession('chat', route.params);
+  }, []);
 
   // ===== 1. LOAD DATA =====
   const loadInitialData = useCallback(async () => {
@@ -246,6 +252,7 @@ const AstroChatRoom = ({ route, navigation }) => {
 
       const handleEnd = () => {
         console.log('🛑 Session Ended');
+        endSession();
         setIsActive(false);
         setSessionStatus('ended');
         Alert.alert('Ended', 'Session has ended.');
@@ -312,6 +319,7 @@ const AstroChatRoom = ({ route, navigation }) => {
             userId: astrologerId,
             reason: 'astrologer_ended',
           });
+          endSession();
           navigation.goBack();
         },
       },

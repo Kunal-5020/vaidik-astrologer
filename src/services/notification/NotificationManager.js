@@ -1,19 +1,11 @@
-// src/services/notification/NotificationManager.js
 import notifee, { 
   AndroidImportance, 
   AndroidCategory, 
-  AndroidVisibility, 
-  EventType 
+  AndroidVisibility,
+  AndroidStyle 
 } from '@notifee/react-native';
 import messaging from '@react-native-firebase/messaging';
 import { Platform, PermissionsAndroid } from 'react-native';
-
-const CHANNELS = {
-  // ⚠️ CHANGED ID: This forces Android to register a NEW channel with the custom sound.
-  CALL: 'astro_call_channel_v2', 
-  CHAT: 'astro_chat_channel_v2',
-  DEFAULT: 'astro_default_channel_v2',
-};
 
 class NotificationManager {
   constructor() {
@@ -24,7 +16,6 @@ class NotificationManager {
     this.navigationRef = ref;
   }
 
-  // --- 1. SETUP & PERMISSIONS ---
   async setup() {
     await this.requestPermissions();
     await this.createChannels();
@@ -34,109 +25,129 @@ class NotificationManager {
     if (Platform.OS === 'android' && Platform.Version >= 33) {
       await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
     }
-    const authStatus = await messaging().requestPermission();
+    await messaging().requestPermission();
   }
 
   async createChannels() {
-    // 1. CALL CHANNEL (High Importance, Custom Sound)
-    await notifee.createChannel({
-      id: CHANNELS.CALL,
-      name: 'Incoming Calls',
-      importance: AndroidImportance.HIGH,
-      visibility: AndroidVisibility.PUBLIC,
-      sound: 'call_ringtone', // ✅ Ensure 'call_ringtone.mp3' is in android/app/src/main/res/raw/
-      vibration: true,
-      vibrationPattern: [300, 500],
-      bypassDnd: true,
-    });
+    try {
+      // 1. URGENT REQUESTS (Calls & Chat Requests) - Loud Ringtone
+      await notifee.createChannel({
+        id: 'astro_urgent_v5', 
+        name: 'Incoming Requests',
+        importance: AndroidImportance.HIGH,
+        visibility: AndroidVisibility.PUBLIC,
+        sound: 'call_ringtone', 
+        vibration: true,
+        vibrationPattern: [300, 500, 300, 500],
+        bypassDnd: true,
+      });
 
-    // 2. CHAT CHANNEL
-    await notifee.createChannel({
-      id: CHANNELS.CHAT,
-      name: 'Chat Messages',
-      importance: AndroidImportance.HIGH,
-      sound: 'chat_tone', // ✅ Ensure 'chat_tone.mp3' is in android/app/src/main/res/raw/
-      vibration: true,
-    });
-
-    // 3. DEFAULT
-    await notifee.createChannel({
-      id: CHANNELS.DEFAULT,
-      name: 'General Notifications',
-      importance: AndroidImportance.DEFAULT,
-      sound: 'default',
-    });
+      // 2. CHAT MESSAGES - Soft Tone
+      await notifee.createChannel({
+        id: 'astro_messages_v5',
+        name: 'Chat Messages',
+        importance: AndroidImportance.HIGH,
+        sound: 'chat_tone', 
+        vibration: true,
+      });
+      
+      console.log('✅ Notification Channels Created');
+    } catch (e) {
+      console.error('❌ Channel Creation Failed:', e);
+    }
   }
 
-  // --- 2. DISPLAY LOGIC ---
-  async displayNotification(remoteMessage) {
-    const { data } = remoteMessage;
-    const type = data?.type;
-    const title = remoteMessage.notification?.title || 'Notification';
-    const body = remoteMessage.notification?.body || '';
+  // --- DISPLAY LOGIC ---
 
-    // Unique ID for Auto-Clearing later
-    const notificationId = data?.sessionId ? `${type}_${data.sessionId}` : `notif_${Date.now()}`;
-
-    let notificationConfig = {
-      id: notificationId,
-      title,
-      body,
-      data: data || {},
-      android: {
-        channelId: CHANNELS.DEFAULT,
-        // ✅ FIXED: Use 'ic_launcher' (your app icon) to prevent crash
-        smallIcon: 'ic_launcher', 
-        pressAction: { id: 'default' },
-      },
-    };
-
-    // --- CONFIGURATION BASED ON TYPE ---
-    switch (type) {
-      case 'call_request_audio':
-      case 'call_request_video':
-        notificationConfig.android = {
-          ...notificationConfig.android,
-          channelId: CHANNELS.CALL,
-          category: AndroidCategory.CALL,
-          importance: AndroidImportance.HIGH,
-          fullScreenAction: {
-            id: 'answer_call',
-            launchActivity: 'default',
-          },
-          pressAction: { id: 'default', launchActivity: 'default' },
-          ongoing: true,
-          loopSound: true, // This loops the 'call_ringtone'
-          actions: [
-            { title: 'Answer', pressAction: { id: 'answer_call', launchActivity: 'default' } },
-            { title: 'Reject', pressAction: { id: 'reject_call' } },
-          ],
-        };
-        break;
-
-      case 'chat_message':
-        notificationConfig.android = {
-          ...notificationConfig.android,
-          channelId: CHANNELS.CHAT,
-          category: AndroidCategory.MESSAGE,
-          pressAction: { id: 'view_chat', launchActivity: 'default' },
-        };
-        break;
-
-      case 'gift_received':
-        notificationConfig.android.channelId = CHANNELS.DEFAULT;
-        break;
+  async displayRequestNotification(data) {
+    const { type, sessionId, userName, userProfilePic } = data;
+    const isCall = type && type.includes('call');
+    
+    // ✅ 1. Validate Image URL Strict Check
+    let hasValidImage = false;
+    if (userProfilePic && typeof userProfilePic === 'string' && (userProfilePic.startsWith('http') || userProfilePic.startsWith('https'))) {
+        hasValidImage = true;
     }
 
-    await notifee.displayNotification(notificationConfig);
+    // ✅ 2. Safe Name Fallback
+    const safeUserName = userName || 'User';
+
+    try {
+      await notifee.displayNotification({
+        id: `req_${sessionId}`,
+        title: isCall ? 'Incoming Call' : 'New Chat Request',
+        body: `${safeUserName} is requesting to ${isCall ? 'call' : 'chat'}...`,
+        data: data,
+        android: {
+          channelId: 'astro_urgent_v5', 
+          category: AndroidCategory.CALL,
+          importance: AndroidImportance.HIGH,
+          visibility: AndroidVisibility.PUBLIC,
+          
+          smallIcon: 'ic_launcher',
+          color: '#4CAF50',
+          
+          // ✅ 3. Conditionally add largeIcon only if valid
+          ...(hasValidImage && { largeIcon: userProfilePic }),
+          
+          ongoing: true,
+          loopSound: true,
+          autoCancel: false,
+          timeoutAfter: 45000, 
+
+          // Wakes up app
+          fullScreenAction: {
+            id: 'default',
+            launchActivity: 'default',
+          },
+          pressAction: {
+            id: 'default',
+            launchActivity: 'default',
+          },
+          
+          actions: [
+            { 
+              title: 'Answer', 
+              pressAction: { id: 'accept_request', launchActivity: 'default' } 
+            },
+            { 
+              title: 'Reject', 
+              pressAction: { id: 'reject_request' } 
+            },
+          ],
+        },
+      });
+    } catch (e) {
+      console.error('❌ Display Request Error:', e);
+    }
   }
 
-  // --- 3. AUTO CLEAR LOGIC ---
-  async cancelNotification(type, sessionId) {
-    if (!sessionId) return;
-    const id = `${type}_${sessionId}`;
-    await notifee.cancelNotification(id);
-    console.log(`🧹 Notification cleared: ${id}`);
+  async displayChatNotification(data) {
+    const { sessionId, senderName, message } = data;
+    try {
+      await notifee.displayNotification({
+        id: `msg_${sessionId}`,
+        title: senderName || 'New Message',
+        body: message || 'You have a new message',
+        data: data,
+        android: {
+          channelId: 'astro_messages_v5',
+          category: AndroidCategory.MESSAGE,
+          pressAction: { id: 'view_chat', launchActivity: 'default' },
+          style: { type: AndroidStyle.BIGTEXT, text: message || '' },
+          smallIcon: 'ic_launcher',
+        },
+      });
+    } catch (e) {
+      console.error('❌ Display Chat Error:', e);
+    }
+  }
+
+  async cancelNotification(id) {
+    if(!id) return;
+    try {
+      await notifee.cancelNotification(id);
+    } catch(e) {}
   }
 
   async cancelAll() {

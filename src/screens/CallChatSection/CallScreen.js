@@ -21,6 +21,7 @@ import CallService from '../../services/api/call/CallService';
 import AstrologerCallSocket from '../../services/socket/AstrologerCallSocket';
 import AgoraEngine from '../../services/agora/engine';
 import { STORAGE_KEYS } from '../../config/constants';
+import { useSession } from '../../contexts/SessionContext';
 
 const COLORS = {
   PRIMARY: '#372643',      // Logo dark purple
@@ -48,9 +49,11 @@ const CallScreen = ({ route, navigation }) => {
   const remainingTimeRef = useRef(0);
   const elapsedRef = useRef(0);
   const timerIntervalRef = useRef(null);
+  const { startSession, endSession } = useSession();
 
-  // Calculate live earnings
-  const currentEarnings = ((elapsed / 60) * ratePerMinute).toFixed(2);
+  useEffect(() => {
+    startSession('call', route.params);
+  }, []);
 
   // --- 1. BACK HANDLER (Fixed Crash) ---
   useFocusEffect(
@@ -139,6 +142,7 @@ const CallScreen = ({ route, navigation }) => {
 
         AstrologerCallSocket.on('call_ended', () => {
           console.log('🛑 [ASTRO] call_ended received');
+          endSession();
           cleanup();
           Alert.alert('Call Ended', 'The session has ended.', [
              { text: 'OK', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Home' }] }) }
@@ -253,6 +257,7 @@ const toggleSpeaker = async () => {
           onPress: async () => {
             try {
               await CallService.endCall(sessionId, 'astrologer_ended');
+              await endSession();
               cleanup();
               navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
             } catch (error) {

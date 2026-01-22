@@ -1,26 +1,26 @@
 // src/screens/main_screens/AccountSettingsScreen.js
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   ScrollView,
-  StyleSheet,
   TouchableOpacity,
   Text,
   Linking,
   Alert,
-  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
-
-const { width } = Dimensions.get('window');
+import { styles } from '../../style/AccountSettingStyle';
+import { astrologerService } from '../../services/api/astrologer.service';
 
 export default function AccountSettingsScreen() {
   const navigation = useNavigation();
   const { logout } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -49,17 +49,65 @@ export default function AccountSettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
+    // 1. First Warning
     Alert.alert(
-      "Delete Account",
-      "This action cannot be undone. Please contact support to process account deletion.",
+      "Delete Account?",
+      "Are you sure you want to delete your account? This action is serious.",
       [
         { text: "Cancel", style: "cancel" },
         { 
-          text: "Contact Support", 
-          onPress: () => navigation.navigate('HelpSupport')
+          text: "Continue", 
+          style: "destructive", 
+          onPress: showFinalConfirmation // Go to step 2
         }
       ]
     );
+  };
+
+  // ✅ Step 2: Policy Explanation & Execution
+  const showFinalConfirmation = () => {
+    Alert.alert(
+      "Final Confirmation",
+      "Your account will be deactivated immediately.\n\nIt will be PERMANENTLY deleted after 7 days.\n\nIf you change your mind, simply login within 7 days to restore it.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete My Account", 
+          style: "destructive", 
+          onPress: processDeletion 
+        }
+      ]
+    );
+  };
+
+  // ✅ Step 3: API Call
+  const processDeletion = async () => {
+    setLoading(true);
+    try {
+      await astrologerService.deleteAccount("User requested deletion via App");
+      
+      Alert.alert(
+        "Account Scheduled for Deletion",
+        "You have been logged out. Your account will be permanently removed in 7 days.",
+        [
+          { 
+            text: "OK", 
+            onPress: async () => {
+              await logout(); // Logout immediately
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }], 
+              });
+            } 
+          }
+        ]
+      );
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", error.message || "Could not delete account. Please contact support.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openLink = (url) => {
@@ -70,7 +118,21 @@ export default function AccountSettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="light-content" safeAreaTop={false }>
+      {loading && (
+        <View style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 999
+        }}>
+          <ActivityIndicator size="large" color="#ffffff" />
+          <Text style={{ color: 'white', marginTop: 10, fontWeight: 'bold' }}>Processing...</Text>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
@@ -181,6 +243,7 @@ export default function AccountSettingsScreen() {
 
           <View style={styles.divider} />
 
+          {/* ✅ UPDATED LINK */}
           <TouchableOpacity 
             style={styles.row} 
             onPress={() => openLink('https://vaidiktalk.com/privacy-policy')}
@@ -199,9 +262,10 @@ export default function AccountSettingsScreen() {
 
           <View style={styles.divider} />
 
+          {/* ✅ UPDATED LINK */}
           <TouchableOpacity 
             style={styles.row} 
-            onPress={() => openLink('https://vaidiktalk.com/terms-conditions')}
+            onPress={() => openLink('https://vaidiktalk.com/terms-and-conditions')}
             activeOpacity={0.7}
           >
             <View style={styles.rowLeft}>
@@ -240,131 +304,6 @@ export default function AccountSettingsScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F5F6FA',
-  },
-  scrollArea: { 
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 24,
-  },
-  
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 20,
-    marginBottom: 10,
-    paddingHorizontal: Math.min(width * 0.04, 16),
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  
-  card: {
-    backgroundColor: '#fff',
-    marginHorizontal: Math.min(width * 0.04, 16),
-    borderRadius: 12,
-    paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  
-  rowLeft: { 
-    flexDirection: 'row', 
-    alignItems: 'center',
-    flex: 1,
-    paddingRight: 10,
-  },
-  
-  iconCircle: {
-    backgroundColor: '#F3F4F6',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  textContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  
-  rowTitle: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    color: '#111827',
-  },
-  
-  rowSubtitle: { 
-    fontSize: 11, 
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  
-  divider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginLeft: 64,
-  },
-  
-  actionsContainer: {
-    marginVertical: 8,
-    marginHorizontal: Math.min(width * 0.04, 16),
-    gap: 10,
-  },
-  
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#EF4444',
-    gap: 8,
-  },
-  
-  logoutButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FEF2F2',
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    gap: 8,
-  },
-  
-  deleteButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-});

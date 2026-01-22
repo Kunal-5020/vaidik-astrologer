@@ -1,7 +1,6 @@
 // src/navigation/AppNavigation.js
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
-import { CardStyleInterpolators } from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 
 // Screens
 import RootTabNavigator from './RootTabNavigation';
@@ -30,7 +29,6 @@ import AstroChatRoom from '../screens/CallChatSection/AstroChatRoom';
 import CallScreen from '../screens/CallChatSection/CallScreen';
 import WalletWithdrawScreen from '../screens/wallet/WalletWithdrawScreen';
 import HelpSupportScreen from '../screens/main_screens/HelpAndSupport';
-import ChangeRequest from '../screens/main_screens/ChangeRequest';
 import NotificationsScreen from '../screens/main_screens/NotificationScreen';
 import PerformanceAnalysisScreen from '../screens/main_screens/PerformanceAnalysis';
 import PayoutRequestsScreen from '../screens/wallet/PayoutRequestsScreen';
@@ -44,6 +42,55 @@ import MediaViewer from '../screens/CallChatSection/MediaViewer';
 
 const Stack = createStackNavigator();
 
+// ==============================
+// 🎨 HEADER THEME CONFIGURATION
+// ==============================
+
+// 1. Purple Header (Brand Color) - White Text & Back Arrow
+const purpleHeaderOptions = {
+  headerStyle: {
+    backgroundColor: '#372643',
+    elevation: 0, // Remove shadow on Android
+    shadowOpacity: 0, // Remove shadow on iOS
+  },
+  headerTintColor: '#ffffff', // Back arrow and Title color
+  headerTitleStyle: {
+    fontWeight: '600',
+    fontSize: 18,
+  },
+  headerBackTitleVisible: false, // Hide "Back" text on iOS
+};
+
+// 2. White Header - Purple Text & Back Arrow
+const whiteHeaderOptions = {
+  headerStyle: {
+    backgroundColor: '#ffffff',
+    elevation: 4, // Add slight shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+  },
+  headerTintColor: '#372643', // Purple text
+  headerTitleStyle: {
+    fontWeight: '600',
+    fontSize: 18,
+  },
+  headerBackTitleVisible: false,
+};
+
+// 3. Yellow Header (Accent) - Purple Text
+const yellowHeaderOptions = {
+  headerStyle: {
+    backgroundColor: '#FFD700', // Gold/Yellow
+    elevation: 0,
+  },
+  headerTintColor: '#372643', // Purple text for contrast
+  headerTitleStyle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  headerBackTitleVisible: false,
+};
+
 const AppNavigation = () => {
   return (
     <Stack.Navigator
@@ -54,115 +101,55 @@ const AppNavigation = () => {
       }}
     >
       {/* ✅ Splash & Auth Screens */}
-      <Stack.Screen 
-        name="Splash" 
-        component={SplashScreen}
-        options={{ animationEnabled: false }}
-      />
-      
-      <Stack.Screen 
-        name="Login" 
-        component={LoginScreen}
-        options={{ animationEnabled: true }}
-      />
-      
-      <Stack.Screen 
-        name="OTP" 
-        component={OTPScreen}
-        options={{ animationEnabled: true }}
-      />
+      <Stack.Screen name="Splash" component={SplashScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="OTP" component={OTPScreen} />
 
       {/* ✅ Registration Flow */}
-      <Stack.Screen 
-        name="RegisterPhone" 
-        component={PhoneNumberScreen}
-        options={{ animationEnabled: true }}
-      />
-      
-      <Stack.Screen 
-        name="RegisterOTP" 
-        component={OtpVerificationScreen}
-        options={{ animationEnabled: true }}
-      />
-
-      <Stack.Screen 
-        name="RegisterForm" 
-        component={RegistrationFormScreen}
-        options={{ animationEnabled: true }}
-      />
-      
-      <Stack.Screen 
-        name="ThankYou" 
-        component={ThankYouScreen}
-        options={{ animationEnabled: false }}
-      />
-      
-      <Stack.Screen 
-        name="CheckStatus" 
-        component={CheckStatusScreen}
-        options={{ animationEnabled: true }}
-      />
-      
-      <Stack.Screen 
-        name="InterviewDashboard" 
-        component={InterviewDashboardScreen}
-        options={{ animationEnabled: true }}
-      />
+      <Stack.Screen name="RegisterPhone" component={PhoneNumberScreen} />
+      <Stack.Screen name="RegisterOTP" component={OtpVerificationScreen} />
+      <Stack.Screen name="RegisterForm" component={RegistrationFormScreen} />
+      <Stack.Screen name="ThankYou" component={ThankYouScreen} />
+      <Stack.Screen name="CheckStatus" component={CheckStatusScreen} />
+      <Stack.Screen name="InterviewDashboard" component={InterviewDashboardScreen} />
 
       {/* ✅ Communication Screens */}
-      <Stack.Screen 
-        name="AstroChatRoom" 
-        component={AstroChatRoom}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
-
-      <Stack.Screen 
-        name="AstroHistoryChat" 
-        component={AstroHistoryChatScreen}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
-
-      <Stack.Screen 
-        name="MediaViewer" 
-        component={MediaViewer}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
-
-      <Stack.Screen 
-        name="SuggestRemedies" 
-        component={SuggestRemediesScreen}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
-
+      <Stack.Screen name="AstroChatRoom" component={AstroChatRoom} />
+      <Stack.Screen name="AstroHistoryChat" component={AstroHistoryChatScreen} />
+      <Stack.Screen name="MediaViewer" component={MediaViewer} />
+      <Stack.Screen name="SuggestRemedies" component={SuggestRemediesScreen} />
+      
       <Stack.Screen 
         name="AstrologerReviews" 
         component={AstrologerReviewsScreen}
-        options={{ headerShown: true, animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'Reviews',
+          ...whiteHeaderOptions // Applying Purple Theme
+        }}
       />
 
+      <Stack.Screen name="AstrologerSuggestedRemedies" component={AstrologerSuggestedRemediesScreen} />
       <Stack.Screen 
-        name="AstrologerSuggestedRemedies" 
-        component={AstrologerSuggestedRemediesScreen}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
-
-      <Stack.Screen 
-        name="CallScreen" 
-        component={CallScreen}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
+  name="CallScreen" 
+  component={CallScreen}
+  options={{
+    headerShown: false,
+    gestureEnabled: false, // 👈 DISABLE SWIPE BACK
+  }}
+/>
 
       {/* ✅ Main App (Authenticated) */}
-      <Stack.Screen 
-        name="Home" 
-        component={RootTabNavigator}
-        options={{ animationEnabled: false }}
-      />
+      <Stack.Screen name="Home" component={RootTabNavigator} />
       
       <Stack.Screen 
         name="EditProfile" 
         component={EditProfileScreen}
-        options={{ headerShown: true, animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'Edit Profile',
+          ...purpleHeaderOptions // Applying Purple Theme
+        }}
       />
       
       <Stack.Screen 
@@ -171,8 +158,7 @@ const AppNavigation = () => {
         options={{
           headerShown: true,
           title: 'Go Live Setup',
-          headerBackTitle: 'Cancel',
-          animationEnabled: true,
+          ...purpleHeaderOptions,
           cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS,
         }}
       />
@@ -180,21 +166,21 @@ const AppNavigation = () => {
       <Stack.Screen 
         name="StreamAnalytics" 
         component={StreamAnalyticsScreen}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
-      
-      <Stack.Screen 
-        name="MyStreams" 
-        component={MyStreamsScreen}
-        options={{ headerShown: false, animationEnabled: true }}
-      />
+        options={{ 
+          headerShown: true,
+          title: 'Stream Analytics',
+          ...yellowHeaderOptions,
+          cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS
+           }} />
+
+      <Stack.Screen name="MyStreams" component={MyStreamsScreen} />
       
       <Stack.Screen 
         name="Go-Live" 
         component={LiveStreamScreen}
         options={{
           headerShown: false,
-          animationEnabled: true,
+          gestureEnabled: false,
           cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS,
         }}
       />
@@ -202,69 +188,99 @@ const AppNavigation = () => {
       <Stack.Screen 
         name="Services" 
         component={MyServicesScreen}
-        options={{ headerShown: true, title: 'My Services', animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'My Services',
+          ...purpleHeaderOptions 
+        }}
       />
       
       <Stack.Screen 
         name="Setting" 
         component={AccountSetting}
-        options={{ headerShown: true, title: 'Account Settings', animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'Account Settings',
+          ...purpleHeaderOptions 
+        }}
       />
       
       <Stack.Screen 
         name="Availability" 
         component={AvailabilityManagement}
-        options={{ headerShown: true, title: 'Availability', animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'Availability',
+          ...purpleHeaderOptions 
+        }}
       />
 
       {/* ✅ Wallet & Finance */}
-
       <Stack.Screen 
         name="WalletWithdraw" 
         component={WalletWithdrawScreen}
-        options={{ headerShown: true, title: 'Withdraw Funds', animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'Withdraw Funds',
+          ...purpleHeaderOptions 
+        }}
       />
 
       <Stack.Screen 
-  name="AddBankAccount" 
-  component={AddBankAccountScreen}
-  options={{ headerShown: true }}
-/>
-<Stack.Screen 
-  name="PayoutRequests" 
-  component={PayoutRequestsScreen}
-  options={{ headerShown: true }}
-/>
+        name="AddBankAccount" 
+        component={AddBankAccountScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Add Bank Account',
+          ...purpleHeaderOptions // Example: White header for forms
+        }}
+      />
+      
+      <Stack.Screen 
+        name="PayoutRequests" 
+        component={PayoutRequestsScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Payout Requests',
+          ...purpleHeaderOptions 
+        }}
+      />
 
-<Stack.Screen 
-  name="PayoutDetails" 
-  component={PayoutDetailsScreen}
-  options={{ headerShown: true }}
-/>
+      <Stack.Screen 
+        name="PayoutDetails" 
+        component={PayoutDetailsScreen}
+        options={{ 
+          headerShown: true, 
+          title: 'Transaction Details',
+          ...purpleHeaderOptions 
+        }}
+      />
 
       {/* ✅ Support & Other */}
       <Stack.Screen 
         name="HelpSupport" 
         component={HelpSupportScreen}
-        options={{ headerShown: true, title: 'Help & Support', animationEnabled: true }}
-      />
-
-      <Stack.Screen 
-        name="ChangeRequest" 
-        component={ChangeRequest}
-        options={{ headerShown: true, title: 'Change Request', animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'Help & Support',
+          ...purpleHeaderOptions 
+        }}
       />
 
       <Stack.Screen 
         name="Notifications" 
         component={NotificationsScreen}
-        options={{ headerShown: false, title: 'Notifications', animationEnabled: true }}
+        options={{ headerShown: false }}
       />
 
       <Stack.Screen 
         name="PerformanceAnalysis" 
         component={PerformanceAnalysisScreen}
-        options={{ headerShown: true, title: 'Performance Analysis', animationEnabled: true }}
+        options={{ 
+          headerShown: true, 
+          title: 'Performance Analysis',
+          ...purpleHeaderOptions 
+        }}
       />
 
     </Stack.Navigator>

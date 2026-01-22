@@ -87,6 +87,12 @@ class AstrologerChatSocket {
     this.socket.emit('end_chat', data);
   }
 
+  rejectChat(sessionId) {
+    if (!this.socket?.connected) return;
+    console.log('📤 [AstroChat] Rejecting chat:', sessionId);
+    this.socket.emit('reject_chat', { sessionId });
+  }
+
   on(event, cb) {
     this.socket?.on(event, cb);
   }

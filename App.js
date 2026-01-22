@@ -12,13 +12,13 @@ import { NotificationProvider } from './src/contexts/NotificationContext';
 import { setNavigationRef } from './src/services/api/axios.instance';
 
 // Import New Logic & Services
-import { SessionProvider, useSession } from './src/contexts/SessionContext';
+import { SessionProvider } from './src/contexts/SessionContext';
+import { ToastProvider } from './src/contexts/ToastContext';
 import ActiveSessionBar from './src/component/ActiveSessionBar';
 import { notificationManager } from './src/services/notification/NotificationManager';
 import { useAppLogic } from './src/hooks/useAppLogic';
 
 // UI Components
-import IncomingChatRequestModal from './src/component/IncomingChatRequestModal';
 import IncomingCallModal from './src/component/IncomingCallModal';
 import GiftNotificationModal from './src/component/GiftNotificationModal';
 
@@ -53,6 +53,11 @@ const getActiveRouteName = (state) => {
   return route.name;
 };
 
+// ✅ DEFINE TOAST CONFIG
+const toastConfig = {
+  customToast: (props) => <CustomToast {...props} />,
+};
+
 const AppContent = () => {
   const navigationRef = useRef(null);
   const [currentRoute, setCurrentRoute] = useState(null);
@@ -75,11 +80,15 @@ const AppContent = () => {
 
   const shouldHideBar = currentRoute === 'CallScreen' || currentRoute === 'AstroChatRoom';
 
+  const activeRequest = incomingCallRequest || incomingChatRequest;
+  const isCall = !!incomingCallRequest;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider style={{ flex: 1 }}>
 
         <SessionProvider>
+          <ToastProvider>
           <NavigationContainer
             ref={(ref) => {
               navigationRef.current = ref;
@@ -103,20 +112,13 @@ const AppContent = () => {
 
         {/* --- GLOBAL MODALS --- */}
         
-        {/* Chat Request */}
-        <IncomingChatRequestModal
-          visible={!!incomingChatRequest}
-          request={incomingChatRequest}
-          onAccept={handleAcceptChat}
-          onReject={handleRejectChat}
-        />
-
-        {/* Incoming Call (Full Screen UI) */}
+        {/* ✅ Unified Modal for Both Call & Chat */}
         <IncomingCallModal
-          visible={!!incomingCallRequest}
-          callData={incomingCallRequest}
-          onAccept={handleAcceptCall}
-          onReject={handleRejectCall}
+          visible={!!activeRequest}
+          data={activeRequest}
+          mode={isCall ? 'call' : 'chat'}
+          onAccept={isCall ? handleAcceptCall : handleAcceptChat}
+          onReject={isCall ? handleRejectCall : handleRejectChat}
         />
 
         {/* Gift Modal */}
@@ -133,7 +135,13 @@ const AppContent = () => {
           }}
         />
 
-        <Toast config={toastConfig} />
+        <Toast 
+              config={toastConfig} 
+              position="bottom"
+              topOffset={50}
+              visibilityTime={4000}
+            />
+          </ToastProvider>
         </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

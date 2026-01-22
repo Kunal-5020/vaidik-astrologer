@@ -228,14 +228,19 @@ class AstrologerService {
 
  // ===== EARNINGS =====
 
-  /**
+ /**
    * Get earnings summary
-   * GET /astrologer/earnings
+   * GET /astrologer/earnings?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
    */
-  async getEarnings() {
+  async getEarnings(filters = {}) {
     try {
-      console.log('💰 [AstrologerService] Fetching earnings...');
-      const response = await apiClient.get('/astrologer/earnings');
+      console.log('💰 [AstrologerService] Fetching earnings with filters:', filters);
+      
+      const params = new URLSearchParams();
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const response = await apiClient.get(`/astrologer/earnings?${params.toString()}`);
       console.log('✅ [AstrologerService] Earnings fetched successfully');
       return response.data;
     } catch (error) {
@@ -246,12 +251,17 @@ class AstrologerService {
 
   /**
    * Get stats (separate from earnings)
-   * GET /astrologer/stats
+   * GET /astrologer/stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
    */
-  async getStats() {
+  async getStats(filters = {}) {
     try {
-      console.log('📈 [AstrologerService] Fetching stats...');
-      const response = await apiClient.get('/astrologer/stats');
+      console.log('📈 [AstrologerService] Fetching stats with filters:', filters);
+
+      const params = new URLSearchParams();
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const response = await apiClient.get(`/astrologer/stats?${params.toString()}`);
       console.log('✅ [AstrologerService] Stats fetched successfully');
       return response.data;
     } catch (error) {
@@ -287,14 +297,19 @@ class AstrologerService {
     }
   }
 
-  /**
-   * ✅ NEW: Get transaction statistics breakdown
-   * GET /astrologer/transactions/stats
+ /**
+   * Get transaction statistics breakdown
+   * GET /astrologer/transactions/stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
    */
-  async getTransactionStats() {
+  async getTransactionStats(filters = {}) {
     try {
-      console.log('📈 [AstrologerService] Fetching transaction stats...');
-      const response = await apiClient.get('/astrologer/transactions/stats');
+      console.log('📈 [AstrologerService] Fetching transaction stats with filters:', filters);
+      
+      const params = new URLSearchParams();
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const response = await apiClient.get(`/astrologer/transactions/stats?${params.toString()}`);
       console.log('✅ [AstrologerService] Transaction stats fetched successfully');
       return response.data;
     } catch (error) {
@@ -303,25 +318,23 @@ class AstrologerService {
     }
   }
 
-  // ===== GIFTS =====
+  // ===== GIFTS (UPDATED) =====
 
   /**
-   * ✅ NEW: Get gift history (gifts received)
-   * GET /astrologer/gifts/history
-   * @param {Object} filters - { page, limit, context }
+   * Get gift history
    */
   async getGiftHistory(filters = {}) {
     try {
-      const { page = 1, limit = 20, context } = filters;
+      const { page = 1, limit = 20, context, startDate, endDate } = filters;
       
       console.log('🎁 [AstrologerService] Fetching gift history...', filters);
       
       const params = new URLSearchParams({ page, limit });
       if (context) params.append('context', context);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
       
       const response = await apiClient.get(`/astrologer/gifts/history?${params.toString()}`);
-      console.log('✅ [AstrologerService] Gift history fetched successfully');
-      
       return response.data;
     } catch (error) {
       console.error('❌ [AstrologerService] Get Gift History Error:', error);
@@ -330,18 +343,88 @@ class AstrologerService {
   }
 
   /**
-   * ✅ NEW: Get gift statistics
-   * GET /astrologer/gifts/stats
+   * Get gift statistics
+   * GET /astrologer/gifts/stats?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
    */
-  async getGiftStats() {
+  async getGiftStats(filters = {}) {
     try {
-      console.log('🎁 [AstrologerService] Fetching gift stats...');
-      const response = await apiClient.get('/astrologer/gifts/stats');
+      console.log('🎁 [AstrologerService] Fetching gift stats with filters:', filters);
+
+      const params = new URLSearchParams();
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const response = await apiClient.get(`/astrologer/gifts/stats?${params.toString()}`);
       console.log('✅ [AstrologerService] Gift stats fetched successfully');
       return response.data;
     } catch (error) {
       console.error('❌ [AstrologerService] Get Gift Stats Error:', error);
       this._handleError(error, 'Failed to fetch gift stats');
+    }
+  }
+
+  // ===== ACCOUNT SETTINGS =====
+
+  /**
+   * Schedule account for deletion (7-day grace period)
+   * DELETE /astrologer/account
+   * @param {string} reason - Optional reason for deletion
+   */
+  async deleteAccount(reason = "") {
+    try {
+      console.log('⚠️ [AstrologerService] Requesting account deletion...');
+      
+      // We send the reason in the body (data property for DELETE requests in axios)
+      const response = await apiClient.delete('/astrologer/account', {
+        data: { reason }
+      });
+      
+      console.log('✅ [AstrologerService] Account scheduled for deletion');
+      return response.data;
+    } catch (error) {
+      console.error('❌ [AstrologerService] Delete Account Error:', error);
+      this._handleError(error, 'Failed to delete account');
+    }
+  }
+
+  // ==================== UGC (BLOCK & REPORT) ====================
+
+  /**
+   * Block a user (Stop receiving messages/calls from them)
+   * POST /astrologer/block-user
+   */
+  async blockUser(userId) {
+    try {
+      console.log('🚫 [AstrologerService] Blocking user:', userId);
+      // Ensure API_ENDPOINTS.ASTROLOGER_BLOCK_USER is defined in api.config.js
+      // If not, use raw string: '/astrologer/block-user'
+      const url = API_ENDPOINTS.ASTROLOGER_BLOCK_USER || '/astrologer/block-user';
+      
+      const response = await apiClient.post(url, { userId });
+      console.log('✅ [AstrologerService] User blocked successfully');
+      return response.data;
+    } catch (error) {
+      console.error('❌ [AstrologerService] Block User Error:', error);
+      this._handleError(error, 'Failed to block user');
+    }
+  }
+
+  /**
+   * Report a user for abuse/spam
+   * POST /common/report
+   */
+  async reportUser(data) {
+    // data = { reportedUserId, reason, entityType: 'chat'|'stream', entityId, description }
+    try {
+      console.log('🚩 [AstrologerService] Reporting user:', data);
+      const url = API_ENDPOINTS.COMMON_REPORT_USER || '/common/report';
+      
+      const response = await apiClient.post(url, data);
+      console.log('✅ [AstrologerService] Report submitted successfully');
+      return response.data;
+    } catch (error) {
+      console.error('❌ [AstrologerService] Report Error:', error);
+      this._handleError(error, 'Failed to submit report');
     }
   }
 

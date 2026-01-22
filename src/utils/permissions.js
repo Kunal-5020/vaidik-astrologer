@@ -106,6 +106,21 @@ export const requestGalleryPermission = async () => {
   }
 };
 
+export const requestNotificationPermission = async () => {
+  if (Platform.OS === 'android' && Platform.Version >= 33) {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn('Notification permission error:', err);
+      return false;
+    }
+  }
+  return true; // iOS handles this via APNS setup, or < 33 doesn't need runtime
+};
+
 // ===== REQUEST BOTH CAMERA AND GALLERY =====
 
 /**
@@ -388,19 +403,24 @@ export const requestAllAppPermissions = async () => {
     const mediaPerms = await requestAllMediaPermissions();
     const locationPerm = await requestLocationPermission();
     const micPerm = await requestMicrophonePermission();
+    
+    // ✅ ADDED: Explicitly call notification permission
+    const notificationPerm = await requestNotificationPermission(); 
 
     console.log('📋 Permission Status:');
     console.log('  Camera:', mediaPerms.camera ? '✅' : '❌');
     console.log('  Gallery:', mediaPerms.gallery ? '✅' : '❌');
     console.log('  Location:', locationPerm ? '✅' : '❌');
     console.log('  Microphone:', micPerm ? '✅' : '❌');
+    console.log('  Notifications:', notificationPerm ? '✅' : '❌');
 
     return {
       camera: mediaPerms.camera,
       gallery: mediaPerms.gallery,
       location: locationPerm,
       microphone: micPerm,
-      allGranted: mediaPerms.camera && mediaPerms.gallery && locationPerm && micPerm,
+      notification: notificationPerm, // ✅ Add to return object
+      allGranted: mediaPerms.camera && mediaPerms.gallery && locationPerm && micPerm && notificationPerm,
     };
   } catch (error) {
     console.error('❌ Error requesting all permissions:', error);
@@ -409,6 +429,7 @@ export const requestAllAppPermissions = async () => {
       gallery: false,
       location: false,
       microphone: false,
+      notification: false,
       allGranted: false,
     };
   }

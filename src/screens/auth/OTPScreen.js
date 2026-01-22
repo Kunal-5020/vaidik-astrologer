@@ -16,8 +16,8 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import OTPStyles from '../../style/OTPStyle';
+import ScreenWrapper from '../../component/ScreenWrapper';
 
 const AstrologerOTPScreen = ({ navigation, route }) => {
   // 1. Removed loginWithTruecaller from hook
@@ -301,7 +301,7 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
   const canSubmit = isOtpComplete && !isVerifying && !!deviceInfo;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ScreenWrapper backgroundColor="#372643" barStyle="light-content">
       <Animated.View 
         style={[
           styles.mainContainer,
@@ -413,7 +413,7 @@ const AstrologerOTPScreen = ({ navigation, route }) => {
           )}
         </View>
       </Animated.View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

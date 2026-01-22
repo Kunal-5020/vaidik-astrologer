@@ -4,17 +4,14 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  StyleSheet,
-  Dimensions,
   Alert,
   Modal,
   FlatList,
   Animated,
   ActivityIndicator,
-  Image,
   BackHandler
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {
@@ -26,8 +23,8 @@ import {
 import { livestreamService } from '../../services/api/livestream.service';
 import { streamSocketService } from '../../services/socket/streamSocketService';
 import { useAuth } from '../../contexts/AuthContext';
-
-const { width, height } = Dimensions.get('window');
+import { styles } from '../../style/LiveStreamStyle';
+import { astrologerService } from '../../services/api/astrologer.service';
 
 export default function LiveStreamScreen() {
   const navigation = useNavigation();
@@ -70,6 +67,7 @@ export default function LiveStreamScreen() {
   const [isCallTimerActive, setIsCallTimerActive] = useState(false);
 
   const [showControls, setShowControls] = useState(true);
+  const [callEndTime, setCallEndTime] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -117,23 +115,23 @@ export default function LiveStreamScreen() {
 
   // ✅ FIX: Timer Logic (Counts Down)
   useEffect(() => {
-    let interval;
-    if (isCallTimerActive && currentCall && callTimer > 0) {
-      interval = setInterval(() => {
-        setCallTimer(prev => {
-           // If timer reaches 0, auto-end the call
-           if (prev <= 1) {
-              clearInterval(interval);
-              console.log("⏰ Timer expired. Ending call.");
-              endCurrentCall(); // Auto-end
-              return 0;
-           }
-           return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isCallTimerActive, currentCall, callTimer]);
+  let interval;
+  if (isCallTimerActive && callEndTime) {
+    interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((callEndTime - now) / 1000));
+      
+      setCallTimer(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        console.log("⏰ Timer expired. Ending call.");
+        endCurrentCall();
+      }
+    }, 500); // Check twice a second for accuracy
+  }
+  return () => clearInterval(interval);
+}, [isCallTimerActive, callEndTime]);
 
   const initializeAgora = async () => {
     try {
@@ -318,6 +316,8 @@ export default function LiveStreamScreen() {
         
         // ✅ FIX: Use maxDuration from backend
         const maxDuration = callData.maxDuration || 600;
+        const calculatedEndTime = Date.now() + (maxDuration * 1000);
+        setCallEndTime(calculatedEndTime);
 
         setCurrentCall({
           userId: request.userId,
@@ -387,11 +387,87 @@ export default function LiveStreamScreen() {
       setCurrentCall(null);
       setIsCallTimerActive(false);
       setCallTimer(0);
+      setCallEndTime(null);
     }
   };
 
+  const handleCommentLongPress = (comment) => {
+    Alert.alert(
+      "Manage Viewer",
+      `${comment.userName}: ${comment.message || comment.comment}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Report", 
+          onPress: () => handleReportViewer(comment) 
+        },
+        { 
+          text: "Block / Kick", 
+          style: "destructive",
+          onPress: () => handleBlockViewer(comment) 
+        }
+      ]
+    );
+  };
+
+  const handleBlockViewer = (comment) => {
+    Alert.alert(
+      "Block Viewer",
+      `Are you sure you want to block ${comment.userName}? They will be removed.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Block", 
+          style: "destructive",
+          onPress: async () => {
+             try {
+                await astrologerService.blockUser(comment.userId);
+                Alert.alert("Blocked", "User blocked successfully.");
+                
+                // Optional: Remove their messages from local state immediately
+                setMessages(prev => prev.filter(m => m.userId !== comment.userId));
+             } catch (error) {
+                Alert.alert("Error", "Could not block user.");
+             }
+          } 
+        }
+      ]
+    );
+  };
+
+  const handleReportViewer = (comment) => {
+     const reasons = ["Harassment", "Spam", "Inappropriate", "Other"];
+     Alert.alert(
+      "Report Reason",
+      "Why are you reporting this?",
+      reasons.map(r => ({
+        text: r,
+        onPress: async () => {
+            try {
+              await astrologerService.reportUser({
+                reportedUserId: comment.userId,
+                reason: r,
+                entityType: 'livestream',
+                entityId: streamId,
+                description: `Comment: ${comment.message || comment.comment}`
+              });
+              Alert.alert("Reported", "Report submitted.");
+            } catch(e) {
+              Alert.alert("Error", "Failed to report.");
+            }
+        }
+      })).concat([{text: "Cancel", style: "cancel"}])
+     );
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <ScreenWrapper 
+      backgroundColor="#000000" 
+      barStyle="light-content" 
+      translucent={true}
+      safeAreaTop={false} 
+      safeAreaBottom={false}
+    >
       <TouchableOpacity activeOpacity={1} onPress={() => setShowControls(!showControls)} style={styles.videoContainer}>
         {currentCall && currentCall.callType === 'video' ? (
           <View style={styles.splitScreen}>
@@ -450,10 +526,16 @@ export default function LiveStreamScreen() {
           data={messages || []}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
-            <View style={styles.chatBubble}>
-              <Text style={styles.chatUser}>{item.userName}</Text>
-              <Text style={styles.chatMsg}>{item.comment || item.message}</Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onLongPress={() => handleCommentLongPress(item)}
+              delayLongPress={300}
+            >
+              <View style={styles.chatBubble}>
+                <Text style={styles.chatUser}>{item.userName}</Text>
+                <Text style={styles.chatMsg}>{item.comment || item.message}</Text>
+              </View>
+            </TouchableOpacity>
           )}
           style={{ maxHeight: 200 }}
         />
@@ -497,57 +579,6 @@ export default function LiveStreamScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  videoContainer: { flex: 1 },
-  fullScreenVideo: { flex: 1 },
-  splitScreen: { flex: 1, flexDirection: 'column' },
-  videoHalf: { flex: 1, backgroundColor: '#222', borderBottomWidth: 1, borderColor: '#333' },
-  fullVideo: { flex: 1 },
-  noVideo: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  noVideoText: { color: '#888', marginTop: 10 },
-  topBar: { position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', alignItems: 'center', zIndex: 10 },
-  liveTag: { backgroundColor: '#D32F2F', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginRight: 10 },
-  liveText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-  viewersTag: { backgroundColor: 'rgba(0,0,0,0.5)', flexDirection: 'row', padding: 6, borderRadius: 4, alignItems: 'center' },
-  viewerText: { color: '#FFF', marginLeft: 6, fontSize: 12 },
-  closeBtn: { backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
-  callCard: { position: 'absolute', top: 60, left: 10, right: 10, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, overflow: 'hidden', zIndex: 5 },
-  callCardContent: { flexDirection: 'row', padding: 10, alignItems: 'center' },
-  callAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#673AB7', justifyContent: 'center', alignItems: 'center' },
-  callAvatarText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
-  callUser: { color: '#000', fontWeight: 'bold', fontSize: 14 },
-  callType: { color: '#666', fontSize: 12 },
-  timerBadge: { backgroundColor: '#E8F5E9', padding: 6, borderRadius: 6, flexDirection: 'row', alignItems: 'center' },
-  redDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'red', marginRight: 6 },
-  timerText: { color: 'green', fontWeight: 'bold', fontSize: 12 },
-  endCallBar: { backgroundColor: '#D32F2F', padding: 8, alignItems: 'center' },
-  endCallText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
-  chatArea: { position: 'absolute', bottom: 80, left: 10, right: 10, height: 200, justifyContent: 'flex-end' },
-  chatBubble: { backgroundColor: 'rgba(0,0,0,0.6)', padding: 8, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 6, maxWidth: '80%' },
-  chatUser: { color: '#FFB300', fontWeight: 'bold', fontSize: 12, marginBottom: 2 },
-  chatMsg: { color: '#FFF', fontSize: 14 },
-  bottomBar: { position: 'absolute', bottom: 20, left: 10, right: 10, flexDirection: 'row', alignItems: 'center', zIndex: 10 },
-  chatInput: { flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingHorizontal: 15, paddingVertical: 8, color: '#FFF', marginRight: 10 },
-  sendBtn: { backgroundColor: '#673AB7', padding: 10, borderRadius: 20, marginRight: 10 },
-  controlBtn: { backgroundColor: 'rgba(0,0,0,0.6)', padding: 10, borderRadius: 20, marginRight: 10 },
-  btnDisabled: { backgroundColor: '#D32F2F' },
-  waitlistBtn: { backgroundColor: '#FFB300', padding: 10, borderRadius: 20 },
-  badge: { position: 'absolute', top: -5, right: -5, backgroundColor: 'red', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  badgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
-  giftAnim: { position: 'absolute', top: '40%', alignSelf: 'center', alignItems: 'center', zIndex: 20 },
-  giftText: { color: '#FFB300', fontWeight: 'bold', fontSize: 18, marginTop: 5, textShadowColor: 'black', textShadowRadius: 2 },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '60%' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#000' },
-  waitlistItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#EEE' },
-  waitlistName: { fontWeight: 'bold', color: '#000', fontSize: 16 },
-  waitlistDetail: { color: '#666', fontSize: 12 },
-  actionSmallBtn: { padding: 8, borderRadius: 20 },
-  closeModalBtn: { marginTop: 20, padding: 15, backgroundColor: '#EEE', borderRadius: 10, alignItems: 'center' },
-  closeModalText: { fontWeight: 'bold', color: '#333' },
-});

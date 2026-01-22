@@ -63,4 +63,8 @@ export const API_ENDPOINTS = {
   ASTRO_CALL_ACCEPT: '/calls/astrologer/accept',
   ASTRO_CALL_REJECT: '/calls/astrologer/reject',
   ASTRO_CALL_END: '/calls/sessions/end',
+
+  // ===== UGC (Block & Report) =====
+  ASTROLOGER_BLOCK_USER: '/astrologer/block-user', // POST { userId }
+  COMMON_REPORT_USER: '/common/report',
 };

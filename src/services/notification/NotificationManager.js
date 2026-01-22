@@ -31,12 +31,13 @@ class NotificationManager {
   async createChannels() {
     try {
       // 1. URGENT REQUESTS (Calls & Chat Requests) - Loud Ringtone
+      // ✅ CHANGED ID to 'v7' to force system to update sound settings
       await notifee.createChannel({
-        id: 'astro_urgent_v5', 
+        id: 'astro_urgent_v7', 
         name: 'Incoming Requests',
         importance: AndroidImportance.HIGH,
         visibility: AndroidVisibility.PUBLIC,
-        sound: 'call_ringtone', 
+        sound: 'call_ringtone', // Make sure this file exists in android/app/src/main/res/raw
         vibration: true,
         vibrationPattern: [300, 500, 300, 500],
         bypassDnd: true,
@@ -63,23 +64,23 @@ class NotificationManager {
     const { type, sessionId, userName, userProfilePic } = data;
     const isCall = type && type.includes('call');
     
-    // ✅ 1. Validate Image URL Strict Check
     let hasValidImage = false;
     if (userProfilePic && typeof userProfilePic === 'string' && (userProfilePic.startsWith('http') || userProfilePic.startsWith('https'))) {
         hasValidImage = true;
     }
 
-    // ✅ 2. Safe Name Fallback
     const safeUserName = userName || 'User';
 
     try {
       await notifee.displayNotification({
         id: `req_${sessionId}`,
-        title: isCall ? 'Incoming Call' : 'New Chat Request',
+        title: isCall ? 'Incoming Call' : 'New Chat Request', // ✅ Title update
         body: `${safeUserName} is requesting to ${isCall ? 'call' : 'chat'}...`,
         data: data,
         android: {
-          channelId: 'astro_urgent_v5', 
+          channelId: 'astro_urgent_v7', // ✅ Matches new Channel ID
+          
+          // ✅ Both Calls AND Chat Requests get "CALL" category to ring loudly/continuously
           category: AndroidCategory.CALL,
           importance: AndroidImportance.HIGH,
           visibility: AndroidVisibility.PUBLIC,
@@ -87,15 +88,14 @@ class NotificationManager {
           smallIcon: 'ic_launcher',
           color: '#4CAF50',
           
-          // ✅ 3. Conditionally add largeIcon only if valid
           ...(hasValidImage && { largeIcon: userProfilePic }),
           
-          ongoing: true,
-          loopSound: true,
+          ongoing: true, // Cannot be swiped away
+          loopSound: true, // Rings continuously
           autoCancel: false,
           timeoutAfter: 45000, 
 
-          // Wakes up app
+          // ✅ FULL SCREEN ACTION: This attempts to open the App from background/lock screen
           fullScreenAction: {
             id: 'default',
             launchActivity: 'default',

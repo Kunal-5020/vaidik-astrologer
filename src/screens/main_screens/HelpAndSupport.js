@@ -2,13 +2,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
-  StyleSheet, 
   ActivityIndicator, 
-  StatusBar 
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
 import { useAuth } from '../../contexts/AuthContext';
+import { styles } from '../../style/HelpAndSupportStyle';
 
 export default function HelpSupportScreen({ navigation }) {
   const { state } = useAuth();
@@ -81,8 +80,7 @@ export default function HelpSupportScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="light-content" safeAreaTop={false}>
 
       <View style={styles.webViewContainer}>
         <WebView
@@ -123,28 +121,6 @@ export default function HelpSupportScreen({ navigation }) {
           </View>
         )}
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  webViewContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  webView: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-});

@@ -2,27 +2,18 @@
 import React, { useState } from 'react';
 import {
   View,
-  StyleSheet,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import Video from 'react-native-video';
+import { styles, COLORS } from '../../style/MediaViewerStyle';
 
-const { width, height } = Dimensions.get('window');
-
-const COLORS = {
-  PRIMARY: '#1E3A8A',
-  SECONDARY: '#1E40AF',
-  ACCENT: '#FFC107',
-  BG: '#000000',
-};
 
 const MediaViewer = ({ route }) => {
   const navigation = useNavigation();
@@ -48,14 +39,19 @@ const MediaViewer = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.BG} />
       
       {/* Header */}
-      <SafeAreaView edges={['top']} style={styles.header}>
+      <ScreenWrapper 
+  backgroundColor="#000000" 
+  barStyle="light-content" 
+  translucent={true}
+  safeAreaTop={false} 
+  safeAreaBottom={false}
+>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="close" size={28} color="#FFF" />
         </TouchableOpacity>
-      </SafeAreaView>
+      </ScreenWrapper>
 
       {/* Media Content */}
       {mediaType === 'video' ? (
@@ -119,55 +115,5 @@ const MediaViewer = ({ route }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  backButton: {
-    padding: 16,
-    alignSelf: 'flex-start',
-  },
-  videoContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-  },
-  video: {
-    width: width,
-    height: height,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-  },
-  playButton: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(30, 58, 138, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 193, 7, 0.8)',
-  },
-});
 
 export default MediaViewer;

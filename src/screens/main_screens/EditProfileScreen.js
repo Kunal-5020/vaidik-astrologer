@@ -1,25 +1,22 @@
 // src/screens/main_screens/EditProfileScreen.js
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Image,
   TouchableOpacity,
   TextInput,
   Alert,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Custom Components
 import ProfileImageModal from '../../component/ProfileImageModal';
-import CustomToast from '../../component/CustomToast';
 import {
   requestCameraPermission,
   requestGalleryPermission,
@@ -27,20 +24,23 @@ import {
 
 // Services & Context
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { astrologerService } from '../../services/api/astrologer.service';
-
-const { width } = Dimensions.get('window');
+import { uploadService } from '../../services/api/upload.service';
+import { styles } from '../../style/EditProfileStyle';
 
 const EditProfileScreen = ({ navigation }) => {
-  // ✅ ALL HOOKS AT THE TOP - BEFORE ANY CONDITIONAL RENDERING
   const { state, updateAstrologer } = useAuth();
+  const { showToast } = useToast();
   const { astrologer } = state;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [showToast, setShowToast] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+
+  // ✅ Track initial state to detect changes
+  const [initialForm, setInitialForm] = useState(null);
+  
   const [form, setForm] = useState({
     profilePic: null,
     name: '',
@@ -65,12 +65,6 @@ const EditProfileScreen = ({ navigation }) => {
     professionalBio: '',
   });
 
-  const showCustomToast = useCallback((message) => {
-    setToastMessage(message);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
-  }, []);
-
   const updateField = useCallback((key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
   }, []);
@@ -82,10 +76,27 @@ const EditProfileScreen = ({ navigation }) => {
     }));
   }, []);
 
+  // ✅ Check if form has changed from initial state
+  const hasChanges = useMemo(() => {
+    if (!initialForm) return false;
+
+    // Check simple fields
+    if (form.name !== initialForm.name) return true;
+    if (form.experience !== initialForm.experience) return true;
+    if (form.professionalBio !== initialForm.professionalBio) return true;
+    if (form.profilePic?.uri !== initialForm.profilePic?.uri) return true;
+
+    // Check Objects (Specializations & Languages)
+    if (JSON.stringify(form.specializations) !== JSON.stringify(initialForm.specializations)) return true;
+    if (JSON.stringify(form.languages) !== JSON.stringify(initialForm.languages)) return true;
+
+    return false;
+  }, [form, initialForm]);
+
   const openCamera = useCallback(async () => {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
-      showCustomToast('Camera permission denied');
+      showToast('Camera denied', 'error');
       return;
     }
     launchCamera(
@@ -97,12 +108,12 @@ const EditProfileScreen = ({ navigation }) => {
         }
       }
     );
-  }, [showCustomToast]);
+  }, [showToast]);
 
   const openGallery = useCallback(async () => {
     const hasPermission = await requestGalleryPermission();
     if (!hasPermission) {
-      showCustomToast('Gallery permission denied');
+      showToast('Gallery denied', 'error');
       return;
     }
     launchImageLibrary({ mediaType: 'photo', quality: 0.5 }, response => {
@@ -111,7 +122,7 @@ const EditProfileScreen = ({ navigation }) => {
         setShowImageModal(false);
       }
     });
-  }, [showCustomToast]);
+  }, [showToast]);
 
   const handleSave = useCallback(async () => {
     if (!form.name) {
@@ -119,8 +130,34 @@ const EditProfileScreen = ({ navigation }) => {
       return;
     }
 
+    if (!hasChanges) {
+      return;
+    }
+
     try {
       setSaving(true);
+
+      let profilePictureUrl = astrologer?.profilePicture; 
+
+      if (form.profilePic?.uri && !form.profilePic.uri.startsWith('http')) {
+        try {
+          console.log('📸 Uploading new profile image...');
+          const uploadResult = await uploadService.uploadImage(
+            form.profilePic.uri, 
+            form.profilePic.type || 'image/jpeg'
+          );
+          
+          if (uploadResult?.url) {
+            profilePictureUrl = uploadResult.url;
+            console.log('✅ Image uploaded:', profilePictureUrl);
+          }
+        } catch (uploadError) {
+          console.error('❌ Image upload failed:', uploadError);
+          Alert.alert('Upload Error', 'Failed to upload profile image. Please try again.');
+          setSaving(false);
+          return;
+        }
+      }
 
       const selectedSpecializations = Object.keys(form.specializations)
         .filter(key => form.specializations[key]);
@@ -134,6 +171,7 @@ const EditProfileScreen = ({ navigation }) => {
         experienceYears: parseInt(form.experience) || 0,
         specializations: selectedSpecializations,
         languages: selectedLanguages,
+        profilePicture: profilePictureUrl,
       };
 
       const response = await astrologerService.updateProfile(updateData);
@@ -146,8 +184,8 @@ const EditProfileScreen = ({ navigation }) => {
           });
         }
 
-        showCustomToast('Profile updated successfully!');
-        setTimeout(() => navigation.goBack(), 1500);
+        showToast('Profile Saved', 'success');
+        navigation.goBack();
       } else {
         throw new Error(response.message || 'Update failed');
       }
@@ -162,7 +200,7 @@ const EditProfileScreen = ({ navigation }) => {
     } finally {
       setSaving(false);
     }
-  }, [form, astrologer, updateAstrologer, navigation, showCustomToast]);
+  }, [form, hasChanges, astrologer, updateAstrologer, navigation, showToast]);
 
   useEffect(() => {
     const loadCompleteProfile = async () => {
@@ -217,7 +255,7 @@ const EditProfileScreen = ({ navigation }) => {
             formattedDOB = dobDateObj.toLocaleDateString('en-US');
           }
 
-          setForm({
+          const loadedForm = {
             profilePic: profile.profilePicture
               ? { uri: profile.profilePicture }
               : null,
@@ -232,7 +270,10 @@ const EditProfileScreen = ({ navigation }) => {
             specializations: specs,
             languages: langs,
             professionalBio: profile.bio || '',
-          });
+          };
+
+          setForm(loadedForm);
+          setInitialForm(JSON.parse(JSON.stringify(loadedForm)));
         }
 
         setLoading(false);
@@ -245,9 +286,14 @@ const EditProfileScreen = ({ navigation }) => {
     loadCompleteProfile();
   }, [updateAstrologer]);
 
-  // ✅ NOW SAFE TO RENDER CONDITIONALLY
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    // ✅ FIX: safeAreaTop={false} + avoidKeyboard={true}
+    <ScreenWrapper 
+      backgroundColor="#ffffff" 
+      barStyle="light-content" 
+      safeAreaTop={false}
+      avoidKeyboard={true}
+    >
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#372643" />
@@ -411,15 +457,20 @@ const EditProfileScreen = ({ navigation }) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                style={[
+                  styles.saveButton, 
+                  (saving || !hasChanges) && styles.saveButtonDisabled
+                ]}
                 onPress={handleSave}
-                disabled={saving}
+                disabled={saving || !hasChanges}
                 activeOpacity={0.8}
               >
                 {saving ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.saveText}>Save Changes</Text>
+                  <Text style={styles.saveText}>
+                    {hasChanges ? 'Save Changes' : 'No Changes'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -438,214 +489,10 @@ const EditProfileScreen = ({ navigation }) => {
             }}
             hasPhoto={!!form.profilePic}
           />
-
-          {showToast && <CustomToast message={toastMessage} />}
         </>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 export default EditProfileScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F6FA',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
-  },
-  scroll: {
-    paddingHorizontal: Math.min(width * 0.05, 20),
-    paddingTop: 16,
-    paddingBottom: 24,
-  },
-  profileWrapper: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  profileContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: '#372643',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    backgroundColor: '#E8EAF6',
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  cameraContainer: {
-    position: 'absolute',
-    bottom: 0,
-    right: width < 360 ? '32%' : '36%',
-    backgroundColor: '#FFF',
-    borderRadius: 18,
-    padding: 8,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    borderWidth: 2,
-    borderColor: '#372643',
-  },
-  sectionTitle: {
-    color: '#372643',
-    marginTop: 20,
-    marginBottom: 12,
-    fontSize: 16,
-    fontWeight: '700',
-    borderBottomWidth: 2,
-    borderBottomColor: '#372643',
-    paddingBottom: 6,
-  },
-  section: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  label: {
-    color: '#333',
-    fontSize: 13,
-    marginTop: 12,
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  inputField: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    fontSize: 14,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  readOnlyContainer: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-  },
-  readOnlyText: {
-    fontSize: 14,
-    color: '#555',
-    fontWeight: '500',
-    flex: 1,
-  },
-  checkboxContainer: {
-    marginTop: 8,
-  },
-  checkboxGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  halfWidth: {
-    width: '50%',
-  },
-  checked: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    backgroundColor: '#372643',
-    marginRight: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unchecked: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#372643',
-    marginRight: 10,
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
-  },
-  bioInput: {
-    height: 100,
-    paddingTop: 12,
-  },
-  charCount: {
-    alignSelf: 'flex-end',
-    color: '#999',
-    fontSize: 11,
-    marginTop: 4,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#372643',
-  },
-  cancelText: {
-    color: '#372643',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  saveButton: {
-    flex: 1,
-    backgroundColor: '#372643',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    shadowColor: '#372643',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.7,
-  },
-  saveText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});

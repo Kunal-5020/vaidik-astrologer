@@ -11,6 +11,13 @@ const ChatService = {
     return res.data.data; // { messages, pagination }
   },
 
+  // ✅ ADDED: Get Conversation Messages (History with Pagination)
+  async getConversationMessages(orderId, page = 1, limit = 50) {
+    const url = `/chat/astrologer/conversations/${orderId}/messages`;
+    const res = await apiClient.get(url, { params: { page, limit } });
+    return res.data; // Returns { success: true, data: { messages: [], pagination: {} } }
+  },
+
   // End chat session (astrologer side)
   async endChatSession(sessionId, reason = 'astrologer_ended') {
     const res = await apiClient.post(API_ENDPOINTS.CHAT_END_SESSION, {

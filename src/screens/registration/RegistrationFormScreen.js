@@ -11,13 +11,10 @@ import {
   Image,
   Alert,
   KeyboardAvoidingView,
-  StyleSheet,
   ActivityIndicator,
   Vibration,
-  Dimensions,
   Linking,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useRegistration } from '../../contexts';
@@ -27,13 +24,12 @@ import {
   checkMediaPermissions,
 } from '../../utils/permissions';
 import { uploadService } from '../../services/api/upload.service';
-
-const { width } = Dimensions.get('window');
+import { styles } from '../../style/RegistrationFormStyle';
+import ScreenWrapper from '../../component/ScreenWrapper';
 
 // ===== CONSTANTS =====
 
 const TOTAL_STEPS = 8;
-const DEV_MODE = __DEV__;
 
 const SKILLS_DATA = [
   'vedic',
@@ -744,7 +740,7 @@ export default function RegistrationFormScreen({ navigation, route }) {
   // ===== RENDER =====
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -798,65 +794,7 @@ export default function RegistrationFormScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
-// ===== STYLES ===== (Keep all your existing styles)
-
-const styles = StyleSheet.create({
-  // ... (all your existing styles - no changes needed)
-  // Copy all styles from previous version
-  safeArea: { flex: 1, backgroundColor: '#5b2b84' },
-  container: { flex: 1, backgroundColor: '#5b2b84' },
-  stepperWrap: { backgroundColor: '#5b2b84', paddingVertical: 24, paddingHorizontal: 0 },
-  stepScrollView: { flexGrow: 0 },
-  stepScrollContent: { paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', flexGrow: 1 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-  stepDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#efe6fb', alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 },
-  stepDotActive: { backgroundColor: '#ff9a2e', transform: [{ scale: 1.15 }], shadowColor: '#ff9a2e', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4, elevation: 4 },
-  stepDotDone: { backgroundColor: '#4caf50' },
-  stepDotText: { fontSize: 14, fontWeight: '700', color: '#999' },
-  stepDotTextActive: { color: '#fff' },
-  stepDotTextDone: { color: '#fff' },
-  connector: { height: 2, width: 12, marginHorizontal: 3 },
-  whitePanel: { flex: 1, backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28 },
-  panelContent: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 120 },
-  stepContent: { marginBottom: 16 },
-  label: { fontSize: 17, fontWeight: '700', color: '#1f2937', marginBottom: 10 },
-  labelProfile: { fontSize: 20, fontWeight: '700', color: '#1f2937', marginBottom: 24, textAlign: 'center' },
-  helperText: { fontSize: 13, color: '#6b7280', marginBottom: 10 },
-  input: { backgroundColor: '#f9fafb', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, borderWidth: 1.5, borderColor: '#e5e7eb', color: '#111' },
-  radioContainer: { marginTop: 8 },
-  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
-  radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  radioActive: { borderColor: '#5b2b84' },
-  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#5b2b84' },
-  radioText: { fontSize: 16, color: '#374151', fontWeight: '500' },
-  languageContainer: { marginTop: 8 },
-  langBtn: { backgroundColor: '#f3f4f6', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, marginBottom: 12, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  langBtnActive: { backgroundColor: '#5b2b84', borderColor: '#5b2b84' },
-  langBtnText: { fontSize: 16, color: '#374151', fontWeight: '600' },
-  langBtnTextActive: { fontSize: 16, color: '#fff', fontWeight: '700' },
-  skillsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-  skillButton: { flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, marginRight: 8, marginBottom: 10, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  skillButtonSelected: { backgroundColor: '#5b2b84', borderColor: '#5b2b84' },
-  symbol: { fontSize: 16, fontWeight: '700', color: '#6b7280', marginRight: 6 },
-  skillText: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  skillTextSelected: { color: '#fff', fontWeight: '600' },
-  phoneRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 12 },
-  phoneOption: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 10, borderWidth: 2, borderColor: '#e5e7eb' },
-  phoneOptionSelected: { borderColor: '#5b2b84', backgroundColor: '#f5f0ff' },
-  phoneLabel: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  profileWrapper: { alignItems: 'center', marginVertical: 24 },
-  profileContainer: { width: 150, height: 150, borderRadius: 75, overflow: 'hidden', backgroundColor: '#f3f4f6', borderWidth: 4, borderColor: '#5b2b84' },
-  profileImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  cameraContainer: { position: 'absolute', bottom: 0, right: width * 0.28, width: 50, height: 50, borderRadius: 25, backgroundColor: '#5b2b84', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 },
-  cameraIcon: { width: 24, height: 24, tintColor: '#fff' },
-  photoTip: { marginTop: 20, color: '#059669', textAlign: 'center', fontSize: 14, lineHeight: 22, paddingHorizontal: 20, fontWeight: '500' },
-  buttonRow: { flexDirection: 'row', position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', paddingVertical: 16, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8 },
-  prevBtn: { flex: 1, backgroundColor: '#f3f4f6', paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginRight: 8 },
-  prevText: { fontSize: 16, fontWeight: '700', color: '#6b7280' },
-  nextBtn: { flex: 1, backgroundColor: '#5b2b84', paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginLeft: 8, shadowColor: '#5b2b84', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  nextText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-});

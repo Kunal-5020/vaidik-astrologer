@@ -2,31 +2,30 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Image,
   TouchableOpacity,
   ScrollView,
   RefreshControl,
   Alert,
   ActivityIndicator,
-  Dimensions,
   InteractionManager, // ✅ Import for transition handling
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import OnlineOfflineButton from '../../component/OnilneOffilneButton';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { livestreamService } from '../../services';
 import { astrologerService } from '../../services/api/astrologer.service';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import astrologerOrderService from '../../services/api/astrologer-order.service';
-
-const { width: screenWidth } = Dimensions.get('window');
+import ScreenWrapper from '../../component/ScreenWrapper';
+import { styles } from '../../style/HomeStyle';
 
 const DashboardScreen = () => {
   const navigation = useNavigation();
   const { state } = useAuth();
   const astrologerId = state.astrologer?._id || state.astrologer?.id;
+  const { unreadCount } = useNotifications();
 
   const [stats, setStats] = useState(null);
   const [earnings, setEarnings] = useState(null);
@@ -268,17 +267,17 @@ const DashboardScreen = () => {
   // ✅ Show loading state while fetching initial data
   if (loading && !stats && !refreshing) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#372643" />
           <Text style={styles.loadingText}>Loading dashboard...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.headerContainer}>
@@ -308,6 +307,14 @@ const DashboardScreen = () => {
               activeOpacity={0.7}
             >
               <Ionicons name="notifications-outline" size={20} color="#fff" />
+              {/* ✅ Red Dot for Unread Notifications */}
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -475,64 +482,8 @@ const DashboardScreen = () => {
           <View style={{ height: 24 }} />
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
 export default DashboardScreen;
-
-// ... (styles remain the same)
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#372643' },
-  container: { flex: 1, backgroundColor: '#F5F6FA' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#6B7280' },
-  errorContainer: { backgroundColor: '#FEE2E2', marginHorizontal: 16, marginTop: 10, padding: 10, borderRadius: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  errorText: { color: '#DC2626', fontSize: 12, flex: 1 },
-  retryText: { color: '#DC2626', fontWeight: '600', fontSize: 12, marginLeft: 10 },
-
-  headerContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#372643', minHeight: 75, paddingHorizontal: 16, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
-  profileContainer: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 },
-  profileImage: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: '#8B5CF6', marginRight: 12 },
-  profileCircle: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#8B5CF6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  profileInitial: { color: '#fff', fontWeight: '700', fontSize: 17 },
-  nameContainer: { flex: 1 },
-  greetingText: { color: '#D1D5DB', fontSize: 12, fontWeight: '400' },
-  profileName: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  actionButtonsContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  notificationButton: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255, 255, 255, 0.15)', justifyContent: 'center', alignItems: 'center' },
-
-  earningsCard: { backgroundColor: '#372643', marginHorizontal: 16, marginTop: 14, borderRadius: 12, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  earningsContent: { flex: 1 },
-  earningsTitle: { color: '#D1D5DB', fontSize: 12, marginBottom: 4 },
-  earningsAmount: { color: '#fff', fontWeight: '700', fontSize: 28, marginBottom: 6 },
-  monthlyEarned: { color: '#D1D5DB', fontSize: 12 },
-  viewDetails: { color: '#8B5CF6', textDecorationLine: 'underline', fontSize: 12, fontWeight: '600' },
-
-  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingHorizontal: 16, gap: 10 },
-  statBox: { backgroundColor: '#fff', borderRadius: 12, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2, flex: 1 },
-  statTitle: { color: '#6B7280', fontSize: 11, marginTop: 6, marginBottom: 4, fontWeight: '500' },
-  statValue: { fontSize: 22, fontWeight: '700' },
-
-  buttonRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16, marginHorizontal: 16, gap: 8 },
-  liveBtn: { flex: 1.2, backgroundColor: '#F59E0B', paddingVertical: 13, borderRadius: 10, alignItems: 'center' },
-  liveBtnActive: { backgroundColor: '#EF4444' },
-  liveText: { color: '#fff', fontWeight: '600', fontSize: 13 },
-  secondaryBtn: { flex: 1, borderWidth: 1.5, borderColor: '#372643', paddingVertical: 13, borderRadius: 10, alignItems: 'center' },
-  secondaryText: { color: '#372643', fontWeight: '600', fontSize: 13 },
-
-  recentTitle: { fontSize: 15, fontWeight: '700', marginTop: 16, marginBottom: 10, color: '#111827', marginLeft: 16 },
-  activityCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 10, marginHorizontal: 16, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2, minHeight: 65 },
-  userImg: { width: 42, height: 42, borderRadius: 21, marginRight: 12 },
-  streamIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  cardContent: { flex: 1 },
-  userName: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  userTime: { fontSize: 11, color: '#6B7280', marginTop: 2 },
-  cardRight: { alignItems: 'flex-end' },
-  amountText: { fontWeight: '700', color: '#111827', fontSize: 13 },
-  orderType: { fontSize: 10, color: '#10B981', fontWeight: '600', marginTop: 2, textTransform: 'capitalize' },
-
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, marginHorizontal: 16 },
-  emptyStateTitle: { fontSize: 15, fontWeight: '600', color: '#6B7280', marginTop: 12 },
-  emptyStateText: { fontSize: 13, color: '#9CA3AF', marginTop: 4, textAlign: 'center' },
-});

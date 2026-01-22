@@ -1,15 +1,22 @@
+// src/component/CustomToast.js
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
+
+const { width } = Dimensions.get('window');
 
 const CustomToast = ({ text1 }) => {
   return (
     <View style={styles.toastContainer}>
       <View style={styles.toastBox}>
         <Image
-          source={require('../assets/SplashLogo.png')} // your round icon here
+          source={require('../assets/SplashLogo.png')} 
           style={styles.icon}
+          resizeMode="contain"
         />
-        <Text style={styles.text}>{text1}</Text>
+        {/* Force Text to be Black */}
+        <Text style={styles.text} numberOfLines={3}>
+          {text1}
+        </Text>
       </View>
     </View>
   );
@@ -17,35 +24,42 @@ const CustomToast = ({ text1 }) => {
 
 const styles = StyleSheet.create({
   toastContainer: {
-    width: '105%',
+    width: '100%', 
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 35,
+    zIndex: 9999, 
+    elevation: 10,
+    // Removed paddingTop which was for top positioning
   },
   toastBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 35,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 0.8 },
-    shadowRadius: 4,
-    width: '60%',
-    height: 40,
+    backgroundColor: '#ffffff', // Explicit White Background
+    borderRadius: 50,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    // Shadows
+    elevation: 6,
+    shadowColor: '#000', 
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    
+    minWidth: width * 0.4,
+    maxWidth: width * 0.9,
   },
   icon: {
-    width: 22,
-    height: 22,
-    marginRight: 8,
+    width: 24,
+    height: 24,
+    marginRight: 12,
   },
   text: {
-    color: '#000',
+    color: '#000000', // Explicit Black Text
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    flex: 1, 
+    flexWrap: 'wrap',
+    textAlign: 'left',
   },
 });
 

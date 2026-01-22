@@ -4,20 +4,23 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { payoutService } from '../../services/api/payout.service';
+import { styles } from '../../style/AddBankAccountStyle';
+import { useToast } from '../../contexts/ToastContext';
 
 const AddBankAccountScreen = ({ navigation, route }) => {
+  // ✅ ADDED: destructure showToast
+  const { showToast } = useToast();
+  
   const [formData, setFormData] = useState({
     accountHolderName: '',
     accountNumber: '',
@@ -149,7 +152,8 @@ const AddBankAccountScreen = ({ navigation, route }) => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors');
+      // ✅ REPLACED Alert with Toast
+      showToast('Please fix the errors in the form', 'error');
       return;
     }
 
@@ -166,32 +170,26 @@ const AddBankAccountScreen = ({ navigation, route }) => {
       });
 
       if (response.success) {
-        Alert.alert(
-          'Success',
-          'Bank account added successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                if (route.params?.onSuccess) {
-                  route.params.onSuccess(response.data);
-                }
-                navigation.goBack();
-              },
-            },
-          ]
-        );
+        // ✅ REPLACED Alert with Toast + Navigation delay
+        showToast('Bank account added successfully!', 'success');
+        
+        setTimeout(() => {
+          if (route.params?.onSuccess) {
+            route.params.onSuccess(response.data);
+          }
+          navigation.goBack();
+        }, 1500);
       }
     } catch (error) {
       console.error('❌ [AddBankAccount] Error:', error);
-      Alert.alert('Error', error.message || 'Failed to add bank account');
+      showToast(error.message || 'Failed to add bank account', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="light-content" safeAreaTop={false}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -397,109 +395,8 @@ const AddBankAccountScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F6FA',
-  },
-
-  content: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8EAF6',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 20,
-    gap: 10,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#372643',
-    lineHeight: 16,
-  },
-
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-  required: {
-    color: '#EF4444',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    gap: 10,
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  inputDisabled: {
-    backgroundColor: '#F5F6FA',
-  },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333',
-  },
-  disabledInput: {
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 11,
-    color: '#EF4444',
-    marginTop: 4,
-    marginLeft: 2,
-  },
-
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: '#FFF',
-    borderTopWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#372643',
-    height: 50,
-    borderRadius: 10,
-    gap: 8,
-  },
-  submitBtnDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  submitBtnText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-});
 
 export default AddBankAccountScreen;

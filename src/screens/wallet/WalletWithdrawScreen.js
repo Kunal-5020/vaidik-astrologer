@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   Alert,
@@ -14,11 +13,16 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { payoutService } from '../../services/api/payout.service';
+import { useToast } from '../../contexts/ToastContext';
+import { styles } from '../../style/WalletWithdrawStyle';
 
 const WalletWithdrawScreen = ({ navigation }) => {
+  // ✅ ADDED: destructure showToast
+  const { showToast } = useToast();
+  
   const [balance, setBalance] = useState(0);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +56,7 @@ const WalletWithdrawScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('❌ [Withdraw] Fetch error:', error);
-      Alert.alert('Error', 'Failed to fetch wallet data');
+      showToast('Failed to fetch wallet data', 'error');
     } finally {
       setLoading(false);
     }
@@ -62,17 +66,18 @@ const WalletWithdrawScreen = ({ navigation }) => {
     const withdrawAmount = parseFloat(amount);
 
     if (!withdrawAmount || withdrawAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+      // ✅ REPLACED Alerts with Toast
+      showToast('Please enter a valid amount', 'error');
       return;
     }
 
     if (withdrawAmount > balance) {
-      Alert.alert('Insufficient Funds', 'You cannot withdraw more than your available balance.');
+      showToast('Insufficient Funds', 'error');
       return;
     }
 
     if (withdrawAmount < 500) {
-      Alert.alert('Minimum Limit', 'Minimum withdrawal amount is ₹500.');
+      showToast('Minimum withdrawal amount is ₹500', 'error');
       return;
     }
 
@@ -99,20 +104,15 @@ const WalletWithdrawScreen = ({ navigation }) => {
       });
 
       if (response.success) {
-        Alert.alert('Success', 'Withdrawal request submitted successfully!', [
-          {
-            text: 'View Requests',
-            onPress: () => navigation.replace('PayoutRequests'),
-          },
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
+        // ✅ REPLACED Alerts with Toast + Success Navigation
+        showToast('Withdrawal request submitted!', 'success');
+        setTimeout(() => {
+          navigation.replace('PayoutRequests');
+        }, 1500);
       }
     } catch (error) {
       console.error('❌ [Withdraw] Error:', error);
-      Alert.alert('Error', error.message || 'Failed to process request');
+      showToast(error.message || 'Failed to process request', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -182,7 +182,7 @@ const WalletWithdrawScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="light-content" safeAreaTop={false}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -356,250 +356,8 @@ const WalletWithdrawScreen = ({ navigation }) => {
       </KeyboardAvoidingView>
 
       {renderBankModal()}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F6FA' },
-
-  content: { padding: 20 },
-
-  balanceCard: {
-    backgroundColor: '#372643',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  balanceLabel: { color: '#E0E0E0', fontSize: 14, marginBottom: 8 },
-  balanceAmount: { color: '#FFF', fontSize: 36, fontWeight: 'bold' },
-  statsRow: {
-    flexDirection: 'row',
-    marginTop: 20,
-    gap: 40,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    color: '#E0E0E0',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  statValue: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  breakdownContainer: {
-    width: '100%',
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  penaltyLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  breakdownLabel: {
-    fontSize: 13,
-    color: '#E0E0E0',
-  },
-  breakdownValue: {
-    fontSize: 13,
-    color: '#FFF',
-    fontWeight: '500',
-  },
-  deduction: {
-    color: '#FFCDD2',
-  },
-  totalRow: {
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.3)',
-  },
-  totalLabel: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  totalValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-
-  inputSection: { marginBottom: 30 },
-  label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 10 },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 60,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  currencySymbol: { fontSize: 24, fontWeight: 'bold', color: '#333', marginRight: 10 },
-  input: { flex: 1, fontSize: 24, fontWeight: 'bold', color: '#333' },
-  hintRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  hint: { fontSize: 12, color: '#999', marginLeft: 4 },
-  maxBtn: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#372643',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: '#E8EAF6',
-    borderRadius: 4,
-  },
-
-  bankCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    marginBottom: 16,
-  },
-  bankIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E8EAF6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  bankTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  bankSubtitle: { fontSize: 12, color: '#888', marginTop: 2 },
-  changeText: { color: '#372643', fontWeight: '600', marginLeft: 'auto' },
-
-  addBankCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#372643',
-    borderStyle: 'dashed',
-    marginBottom: 16,
-    gap: 12,
-  },
-  addBankCardText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#372643',
-  },
-
-  viewRequestsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#E8EAF6',
-    padding: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  viewRequestsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#372643',
-  },
-
-  footer: { padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#EEE' },
-  withdrawBtn: {
-    backgroundColor: '#4CAF50',
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  disabledBtn: { backgroundColor: '#A5D6A7' },
-  btnText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 40,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  bankList: {
-    padding: 16,
-  },
-  bankOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#F5F6FA',
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  bankOptionSelected: {
-    borderColor: '#4CAF50',
-    backgroundColor: '#E8F5E9',
-  },
-  addBankBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 16,
-    padding: 16,
-    backgroundColor: '#E8EAF6',
-    borderRadius: 12,
-    gap: 8,
-  },
-  addBankText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#372643',
-  },
-});
 
 export default WalletWithdrawScreen;

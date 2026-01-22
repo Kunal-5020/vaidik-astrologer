@@ -1,4 +1,4 @@
-// src/screens/auth/Login.js
+// src/screens/auth/LoginScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,17 +13,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
-  PermissionsAndroid, // Added PermissionsAndroid
+  PermissionsAndroid,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import LoginStyle from '../../style/LoginStyle';
-import Toast from 'react-native-toast-message';
 import CountryCodePicker from '../../component/CountaryCodePickar';
 import { useAuth } from '../../contexts/AuthContext';
 import { astrologerAuthService } from '../../services';
 import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
+import { useToast } from '../../contexts/ToastContext';
+import ScreenWrapper from '../../component/ScreenWrapper';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 const countryRules = {
   IN: 10, US: 10, CA: 10, AU: 9, GB: 10, AE: 9, SA: 9, PK: 10, BD: 10,
@@ -44,6 +44,7 @@ const Login = ({ navigation }) => {
     dial_code: '91',
     flag: 'https://flagcdn.com/w20/in.png',
   });
+  const { showToast } = useToast();
 
   const styles = LoginStyle;
 
@@ -55,33 +56,21 @@ const Login = ({ navigation }) => {
     error: truecallerError,
   } = useTruecaller({
     androidClientId: '4rxptw6rdoll4cvj6ccb4qobzofhuuznw-ablj5mb_m',
-    // iosAppKey: 'RxVOcf3b86650e63242daa6e612779e663014',
-    // iosAppLink: 'https://sie358da1f02ca425497d8c4a41cd0a8d6.truecallerdevs.com', 
     androidSuccessHandler: handleTruecallerSuccess,
     scopes: ['profile', 'phone', 'openid'],
   });
 
-  // ===== INITIALIZATION =====
   useEffect(() => {
-    const init = async () => {
-      try {
-        await initializeTruecallerSDK();
-        console.log('✅ Truecaller SDK initialized');
-      } catch (error) {
-        console.log('⚠️ Truecaller init failed:', error.message);
-      }
-    };
-    init();
+    initializeTruecallerSDK().catch(() => {});
   }, []);
 
-  useEffect(() => {
+ useEffect(() => {
     if (truecallerError) {
-      console.error('❌ Truecaller error:', truecallerError);
-      if (truecallerError !== 'Truecaller SDK not initialized') {
-          Alert.alert(
-          'Truecaller Error',
-          'Could not verify with Truecaller. Please use OTP login.'
-        );
+      const errStr = truecallerError.toString();
+      if (errStr.includes('denied') || errStr.includes('cancel')) {
+        showToast( 'Truecaller login cancelled', 'error');
+      } else if (errStr !== 'Truecaller SDK not initialized') {
+        showToast( 'Truecaller verification failed. Use OTP', 'error');
       }
     }
   }, [truecallerError]);
@@ -89,7 +78,6 @@ const Login = ({ navigation }) => {
   useEffect(() => {
     const setupFCMOnMount = async () => {
       try {
-        // ===== NEW: Explicitly Request Notification Permission (Android 13+) =====
         if (Platform.OS === 'android' && Platform.Version >= 33) {
           const granted = await PermissionsAndroid.request(
             PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
@@ -98,11 +86,6 @@ const Login = ({ navigation }) => {
             console.log('🔔 Notification permission granted');
           } else {
             console.warn('🔕 Notification permission denied');
-            Alert.alert(
-              'Permission Required',
-              'Please allow notifications to receive calls and chats.',
-              [{ text: 'OK' }]
-            );
           }
         }
 
@@ -125,11 +108,8 @@ const Login = ({ navigation }) => {
     setupFCMOnMount();
   }, []);
 
-  // ===== TRUECALLER HANDLER =====
   async function handleTruecallerSuccess(data) {
     try {
-      console.log('🔄 [Login] Processing Truecaller data...');
-
       const truecallerData = {
         authorizationCode: data.authorizationCode,
         codeVerifier: data.codeVerifier,
@@ -139,55 +119,20 @@ const Login = ({ navigation }) => {
 
       const authResult = await loginWithTruecaller(truecallerData);
 
-      if (authResult && authResult.success) {
+      if (authResult?.success) {
         if (authResult.data.canLogin === false) {
-          Alert.alert(
-            'Account Not Found',
-            authResult.data.message + '\n\nWould you like to register as an astrologer?',
-            [
-              {
-                text: 'Register',
-                onPress: () => navigation.navigate('RegisterPhone'),
-              },
-              { text: 'Cancel', style: 'cancel' },
-            ]
-          );
-          return;
+           // Handle not registered...
+           Alert.alert('Not Registered', 'Please register first.', [
+               { text: 'Register', onPress: () => navigation.navigate('RegisterPhone') },
+               { text: 'Cancel' }
+           ]);
         }
-
-        const user = authResult.data?.user;
-        const astrologer = authResult.data?.astrologer;
-        const isNewUser = authResult.data?.isNewUser;
-
-        if (!user || !astrologer) {
-          throw new Error('Invalid response from server');
-        }
-
-        // Navigate based on profile completion
-        if (!astrologer.isProfileComplete || isNewUser) {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Details' }],
-          });
-        } else {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Home' }],
-          });
-        }
-      } else {
-        throw new Error(authResult?.message || 'Login failed');
+        // AuthContext handles state update
       }
     } catch (error) {
-      console.error('❌ [Login] Truecaller login error:', error);
-      Alert.alert(
-        'Login Failed',
-        error.message || 'Could not complete Truecaller login. Please try OTP login.'
-      );
+      showToast( error.message, 'error');
     }
   }
-
-  // ===== HANDLERS =====
 
   const handleCountrySelect = country => {
     setSelectedCountry(country);
@@ -199,12 +144,7 @@ const Login = ({ navigation }) => {
 
     if (phone.length !== expectedLength) {
       if (!phone) {
-        Toast.show({
-          type: 'customToast',
-          text1: 'Please enter phone number',
-          position: 'bottom',
-          visibilityTime: 2000,
-        });
+        showToast('Please enter phone number', 'error');
         return;
       }
       Alert.alert(
@@ -264,8 +204,9 @@ const Login = ({ navigation }) => {
     }
   };
 
+  // ✅ UPDATED LINKS
   const handleTermsPress = async () => {
-    const url = 'https://vaidiktalk.store/pages/terms-conditions';
+    const url = 'https://vaidiktalk.com/terms-and-conditions';
     try {
       await Linking.openURL(url);
     } catch (err) {
@@ -274,7 +215,7 @@ const Login = ({ navigation }) => {
   };
 
   const handlePrivacyPress = async () => {
-    const url = 'https://vaidiktalk.store/pages/privacy-policy';
+    const url = 'https://vaidiktalk.com/privacy-policy';
     try {
       await Linking.openURL(url);
     } catch (err) {
@@ -283,30 +224,19 @@ const Login = ({ navigation }) => {
   };
 
   const handleTruecallerLogin = async () => {
-    try {
-      const isUsable = await isSdkUsable();
-
-      if (!isUsable) {
-        Alert.alert(
-          'Truecaller Not Available',
-          'Please install the Truecaller app to use this feature, or continue with OTP verification.'
-        );
-        return;
-      }
-
-      console.log('📱 Opening Truecaller verification...');
-      await openTruecallerForVerification();
-    } catch (error) {
-      console.error('❌ Truecaller error:', error);
-      Alert.alert('Error', 'Could not open Truecaller. Please try OTP login.');
+    const isUsable = await isSdkUsable();
+    if (!isUsable) {
+      showToast( 'Truecaller app not found. Please use OTP.', 'info');
+      return;
     }
+    await openTruecallerForVerification();
   };
 
   const isLoading = state.isLoading || isCheckingPhone || !fcmSetupDone;
 
-  // ===== RENDER =====
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    // UPDATED: Set backgroundColor to purple and barStyle to light-content
+    <ScreenWrapper backgroundColor="#372643" barStyle="light-content">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, width: '100%' }}
@@ -320,7 +250,6 @@ const Login = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ===== LOADING STATE ===== */}
           {!fcmSetupDone && (
             <View style={{ 
               flex: 1, 
@@ -335,10 +264,8 @@ const Login = ({ navigation }) => {
             </View>
           )}
 
-          {/* ===== MAIN CONTENT ===== */}
           {fcmSetupDone && (
             <>
-              {/* Logo Card */}
               <View style={styles.card}>
                 <View style={styles.logoContainer}>
                   <Image
@@ -349,7 +276,6 @@ const Login = ({ navigation }) => {
                 <Text style={styles.vaidik}>Vaidik Talk</Text>
               </View>
 
-              {/* Phone Input */}
               <View style={styles.phoneContainer}>
                 <CountryCodePicker onSelect={handleCountrySelect} />
                 <TextInput
@@ -364,7 +290,6 @@ const Login = ({ navigation }) => {
                 />
               </View>
 
-              {/* Get OTP Button */}
               <TouchableOpacity 
                 style={[styles.otpButton, isLoading && { opacity: 0.6 }]} 
                 onPress={handleLogin}
@@ -378,7 +303,7 @@ const Login = ({ navigation }) => {
                 )}
               </TouchableOpacity>
 
-              {/* Terms & Conditions */}
+              {/* ✅ TERMS & PRIVACY LINKS */}
               <View style={styles.termsWrapper}>
                 <Text style={styles.termsText}>By signing up, you agree to our </Text>
                 <TouchableOpacity onPress={handleTermsPress}>
@@ -391,14 +316,12 @@ const Login = ({ navigation }) => {
                 <Text style={styles.termsText}>.</Text>
               </View>
 
-              {/* Divider */}
               <View style={styles.dividerContainer}>
                 <View style={styles.line} />
                 <Text style={styles.orText}>Or</Text>
                 <View style={styles.line} />
               </View>
 
-              {/* Truecaller Button */}
               <TouchableOpacity 
                 style={[styles.truecallerButton, isLoading && { opacity: 0.6 }]}
                 onPress={handleTruecallerLogin}
@@ -412,7 +335,6 @@ const Login = ({ navigation }) => {
                 <Text style={styles.truecallerText}>Login With Truecaller</Text>
               </TouchableOpacity>
 
-              {/* Sign Up Link */}
               <View style={styles.signupWrapper}>
                 <Text style={styles.signupText}>Don't have an account? </Text>
                 <TouchableOpacity onPress={() => {
@@ -423,7 +345,6 @@ const Login = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Check Status Link */}
               <TouchableOpacity 
                 onPress={() => navigation.navigate('CheckStatus')}
                 style={styles.checkStatusButton}
@@ -436,7 +357,7 @@ const Login = ({ navigation }) => {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 

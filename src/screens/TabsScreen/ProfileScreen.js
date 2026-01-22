@@ -4,19 +4,19 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
-import { Avatar, Chip } from 'react-native-paper';
+import { Avatar } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { astrologerService } from '../../services/api/astrologer.service';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenWrapper from '../../component/ScreenWrapper';
+import { styles } from '../../style/ProfileStyle';
 
 const ProfileScreen = ({ navigation }) => {
   const { state, logout } = useAuth();
@@ -89,8 +89,7 @@ const ProfileScreen = ({ navigation }) => {
   const totalReviews = ratings.total || 0;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <StatusBar backgroundColor="#372643" barStyle="light-content" />
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
       
       <View style={styles.container}>
         {/* Header */}
@@ -191,11 +190,10 @@ const ProfileScreen = ({ navigation }) => {
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 };
 
-// ... (StatCard and MenuItem components remain unchanged)
 const StatCard = ({ value, label, icon, color }) => (
   <View style={styles.statCard}>
     <View style={[styles.statIconContainer, { backgroundColor: `${color}15` }]}>
@@ -218,44 +216,5 @@ const MenuItem = ({ icon, iconColor, bgColor, title, subtitle, onPress }) => (
     <Icon name="chevron-right" size={24} color="#D1D5DB" />
   </TouchableOpacity>
 );
-
-// ... (Styles remain unchanged)
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#372643' },
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: { alignItems: 'center', paddingTop: 10, paddingBottom: 20, backgroundColor: '#372643', borderBottomLeftRadius: 32, borderBottomRightRadius: 32, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 8 },
-  avatarContainer: { position: 'relative', marginBottom: 10 },
-  avatar: { backgroundColor: '#FFB300', borderWidth: 0 },
-  avatarLabel: { fontWeight: 'bold', fontSize: 26, color: '#FFF' },
-  verifiedIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#FFF', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 4 },
-  name: { color: '#FFF', fontSize: 22, fontWeight: 'bold', letterSpacing: 0.5 },
-  subtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 },
-  ratingContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, gap: 4 },
-  ratingText: { color: '#FFF', fontSize: 13, fontWeight: 'bold' },
-  reviewCount: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginLeft: 6 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 10 },
-  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  infoText: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '500' },
-  infoDivider: { width: 1, height: 14, backgroundColor: 'rgba(255,255,255,0.3)' },
-  content: { flex: 1 },
-  scrollContent: { paddingBottom: 20 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 30 },
-  statsContainer: { flexDirection: 'row', marginTop: 5, marginHorizontal: 20, marginBottom: 24, gap: 12, minHeight: 100 },
-  statCard: { flex: 1, backgroundColor: '#FFF', borderRadius: 16, paddingVertical: 18, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
-  statIconContainer: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  statValue: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#6B7280', fontWeight: '500' },
-  menuSection: { paddingHorizontal: 20, marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 14, letterSpacing: 0.3 },
-  menuList: { gap: 12 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 16, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
-  menuIconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
-  menuTextContainer: { flex: 1 },
-  menuTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 2 },
-  menuSubtitle: { fontSize: 12, color: '#9CA3AF' },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 12, paddingVertical: 16, borderRadius: 16, gap: 10, borderWidth: 1.5, borderColor: '#FFCDD2', shadowColor: '#D32F2F', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  logoutText: { fontSize: 16, fontWeight: '600', color: '#D32F2F' },
-});
 
 export default ProfileScreen;

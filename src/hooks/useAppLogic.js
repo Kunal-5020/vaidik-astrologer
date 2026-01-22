@@ -144,13 +144,31 @@ export const useAppLogic = (navigationRef) => {
   };
 
   const handleRejectCall = async (id) => {
-    const sessionId = id || incomingCallRequest?.sessionId;
-    if (!sessionId) return;
-    try {
-      await CallService.rejectCall(sessionId, 'astrologer_rejected');
-      await notificationManager.cancelNotification(`req_${sessionId}`);
-    } catch (e) { console.error(e); }
+    // If 'id' is an Event object (from onPress), use stored sessionId
+    const sessionId = (typeof id === 'string' && id) ? id : incomingCallRequest?.sessionId;
+    
+    // Always clear UI request immediately
     setIncomingCallRequest(null);
+
+    if (!sessionId) {
+        console.warn('⚠️ No Session ID found for rejection');
+        return;
+    }
+
+    // Clear Notification immediately
+    await notificationManager.cancelNotification(`req_${sessionId}`);
+
+    try {
+      console.log('🚫 Rejecting Call:', sessionId);
+      await CallService.rejectCall(sessionId, 'astrologer_rejected');
+    } catch (e) {
+      // ✅ FIX: Gracefully handle 400/404 (Call already cancelled/timeout)
+      if (e.response?.status === 400 || e.response?.status === 404) {
+          console.log('ℹ️ Call was likely already cancelled by server/user.');
+      } else {
+          console.error('Reject Call Error:', e);
+      }
+    }
   };
 
   const handleAcceptChat = async () => {
@@ -167,11 +185,18 @@ export const useAppLogic = (navigationRef) => {
      }
   };
 
-  const handleRejectChat = async () => {
-    if(incomingChatRequest?.sessionId) {
-        await notificationManager.cancelNotification(`req_${incomingChatRequest.sessionId}`);
-    }
+  const handleRejectChat = async (id) => {
+    const sessionId = (typeof id === 'string' && id) ? id : incomingChatRequest?.sessionId;
     setIncomingChatRequest(null);
+
+    if(sessionId) {
+        await notificationManager.cancelNotification(`req_${sessionId}`);
+        try {
+            console.log('🚫 Rejecting Chat:', sessionId);
+            await AstrologerChatSocket.connect();
+            AstrologerChatSocket.rejectChat(sessionId);
+        } catch (e) { console.error('Reject Chat Error:', e); }
+    }
   };
 
   const handleForceLogout = async () => {

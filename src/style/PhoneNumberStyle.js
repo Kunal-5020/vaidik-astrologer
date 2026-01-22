@@ -1,0 +1,173 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  headerContainer: {
+    paddingTop: 40,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 26,
+    color: '#333',
+    fontWeight: '400',
+  },
+  titleBold: {
+    fontSize: 34,
+    color: '#5b2b84',
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  card: {
+    flex: 1,
+    backgroundColor: '#f9f9f9',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 40,
+  },
+  label: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  phoneContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    color: '#111',
+  },
+  counterText: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 12,
+    textAlign: 'right',
+    fontWeight: '500',
+  },
+  counterTextValid: {
+    color: '#4caf50',
+    fontWeight: '700',
+  },
+  errorContainer: {
+    backgroundColor: '#fee',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#d32f2f',
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 28,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  sendButton: {
+    backgroundColor: '#5b2b84',
+    borderRadius: 10,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#5b2b84',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#d1d5db',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  sendButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  checkStatusButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  checkStatusText: {
+    color: '#5b2b84',
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  checkStatusTextDisabled: {
+    color: '#d1d5db',
+  },
+  backButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  backButtonText: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  backButtonTextDisabled: {
+    color: '#d1d5db',
+  },
+  // ✅ ADDED: Terms Styles
+  termsWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 18,
+  },
+  link: {
+    color: '#5b2b84',
+    textDecorationLine: 'underline',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});

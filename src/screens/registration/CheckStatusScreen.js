@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -13,6 +12,8 @@ import {
 } from 'react-native';
 import { useRegistration } from '../../contexts';
 import InterviewTimeline from '../../component/registration/InterviewTimeline';
+import { styles } from '../../style/CheckStatusStyle';
+import ScreenWrapper from '../../component/ScreenWrapper';
 
 export default function CheckStatusScreen({ navigation }) {
   const { checkStatus } = useRegistration();
@@ -120,6 +121,7 @@ export default function CheckStatusScreen({ navigation }) {
                               registrationData?.status === 'shortlisted';
 
   return (
+    <ScreenWrapper backgroundColor="#372643" barStyle="light-content">
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -276,205 +278,6 @@ export default function CheckStatusScreen({ navigation }) {
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenWrapper>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  headerContainer: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 28,
-    color: '#333',
-    fontWeight: '400',
-  },
-  titleBold: {
-    fontSize: 32,
-    color: '#5b2b84',
-    fontWeight: '800',
-  },
-  card: {
-    flex: 1,
-    backgroundColor: '#f9f9f9',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-  },
-  cardContent: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 40,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    marginBottom: 20,
-  },
-  checkButton: {
-    backgroundColor: '#5b2b84',
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  checkButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  checkButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  statusCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  statusTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    maxWidth: '60%',
-    textAlign: 'right',
-  },
-  waitlistInfo: {
-    backgroundColor: '#fff5e6',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  waitlistTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ff9a2e',
-    marginBottom: 8,
-  },
-  waitlistText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  approvalInfo: {
-    backgroundColor: '#e8f5e9',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  approvalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#4caf50',
-    marginBottom: 8,
-  },
-  approvalText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-  },
-  loginButton: {
-    backgroundColor: '#4caf50',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  rejectionInfo: {
-    backgroundColor: '#ffebee',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  rejectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#f44336',
-    marginBottom: 8,
-  },
-  rejectionText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  reapplyText: {
-    fontSize: 13,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  backButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  backButtonText: {
-    color: '#5b2b84',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  backToLoginButton: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    marginTop: 4,
-  },
-  backToLoginText: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});

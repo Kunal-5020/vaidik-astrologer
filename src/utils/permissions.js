@@ -132,22 +132,28 @@ export const requestAllMediaPermissions = async () => {
     console.log('📸 Requesting Camera and Gallery permissions...');
 
     if (Platform.OS === 'android') {
-      // Request both permissions at once on Android
-      const permissions = [PermissionsAndroid.PERMISSIONS.CAMERA];
+      const permissionsToRequest = [PermissionsAndroid.PERMISSIONS.CAMERA];
       
-      if (Platform.Version >= 33) {
-        permissions.push(PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES);
-      } else {
-        permissions.push(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
-      }
+      // Android 13+ (API 33) uses granular media permissions
+      const galleryPermission = Platform.Version >= 33 
+        ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES 
+        : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
 
-      const granted = await PermissionsAndroid.requestMultiple(permissions);
+      permissionsToRequest.push(galleryPermission);
 
-      const cameraGranted = granted['android.permission.CAMERA'] === PermissionsAndroid.RESULTS.GRANTED;
-      const galleryGranted = granted[permissions[1]] === PermissionsAndroid.RESULTS.GRANTED;
+      const granted = await PermissionsAndroid.requestMultiple(permissionsToRequest);
+
+      const cameraGranted = granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+      const galleryGranted = granted[galleryPermission] === PermissionsAndroid.RESULTS.GRANTED;
 
       console.log('📋 Camera:', cameraGranted ? 'Granted' : 'Denied');
       console.log('📋 Gallery:', galleryGranted ? 'Granted' : 'Denied');
+
+      // If either is denied, show alert helper
+      if (!cameraGranted && !galleryGranted) {
+          // Optional: You can rely on the UI to show the alert, or show it here.
+          // Usually better to let the UI handle the "Open Settings" flow if check fails.
+      }
 
       return {
         camera: cameraGranted,
@@ -155,7 +161,7 @@ export const requestAllMediaPermissions = async () => {
         allGranted: cameraGranted && galleryGranted,
       };
     } else {
-      // iOS - request sequentially
+      // iOS
       const [cameraResult, galleryResult] = await Promise.all([
         request(PERMISSIONS.IOS.CAMERA),
         request(PERMISSIONS.IOS.PHOTO_LIBRARY),
@@ -163,14 +169,6 @@ export const requestAllMediaPermissions = async () => {
 
       const cameraGranted = cameraResult === RESULTS.GRANTED;
       const galleryGranted = galleryResult === RESULTS.GRANTED || galleryResult === RESULTS.LIMITED;
-
-      console.log('📋 Camera:', cameraGranted ? 'Granted' : 'Denied');
-      console.log('📋 Gallery:', galleryGranted ? 'Granted' : 'Denied');
-
-      // Show alert if any permission is blocked
-      if (cameraResult === RESULTS.BLOCKED || galleryResult === RESULTS.BLOCKED) {
-        showPermissionDeniedAlert('Camera and Photos');
-      }
 
       return {
         camera: cameraGranted,
@@ -180,11 +178,7 @@ export const requestAllMediaPermissions = async () => {
     }
   } catch (error) {
     console.error('❌ Error requesting media permissions:', error);
-    return {
-      camera: false,
-      gallery: false,
-      allGranted: false,
-    };
+    return { camera: false, gallery: false, allGranted: false };
   }
 };
 
@@ -368,7 +362,6 @@ export const requestAllAppPermissions = async () => {
     console.log('🔐 Requesting all app permissions...');
 
     const mediaPerms = await requestAllMediaPermissions();
-    const locationPerm = await requestLocationPermission();
     const micPerm = await requestMicrophonePermission();
     
     // ✅ ADDED: Explicitly call notification permission
@@ -407,7 +400,6 @@ export default {
   requestGalleryPermission,
   requestAllMediaPermissions,
   checkMediaPermissions,
-  requestLocationPermission,
   requestMicrophonePermission,
   requestCameraAndMicPermissions,
   requestAllAppPermissions,

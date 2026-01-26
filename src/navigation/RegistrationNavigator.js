@@ -1,7 +1,5 @@
-import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import PhoneNumberScreen from '../screens/registration/PhoneNumberScreen';
-import OtpVerificationScreen from '../screens/registration/OtpVerificationScreen';
 import RegistrationFormScreen from '../screens/registration/RegistrationFormScreen';
 import ThankYouScreen from '../screens/registration/ThankYouScreen';
 import CheckStatusScreen from '../screens/registration/CheckStatusScreen';
@@ -17,7 +15,6 @@ export default function RegistrationNavigator() {
       }}
     >
       <Stack.Screen name="PhoneNumber" component={PhoneNumberScreen} />
-      <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
       <Stack.Screen name="RegistrationForm" component={RegistrationFormScreen} />
       <Stack.Screen name="ThankYou" component={ThankYouScreen} />
       <Stack.Screen name="CheckStatus" component={CheckStatusScreen} />

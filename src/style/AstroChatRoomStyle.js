@@ -21,7 +21,18 @@ export const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12, fontSize: 14, color: COLORS.TEXT_LIGHT, fontWeight: '500' },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10, backgroundColor: COLORS.PRIMARY, ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }, android: { elevation: 4 } }) },
+  // --- HEADER ---
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    padding: 10, 
+    backgroundColor: COLORS.PRIMARY, 
+    ...Platform.select({ 
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }, 
+      android: { elevation: 4 } 
+    }) 
+  },
   headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   backButton: { padding: 4, marginRight: 8 },
   avatarContainer: { position: 'relative' },
@@ -31,16 +42,41 @@ export const styles = StyleSheet.create({
   headerTitle: { fontWeight: 'bold', fontSize: 16, color: '#FFF' },
   headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
   
+  // --- HEADER ACTIONS ---
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timerPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.25)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255, 193, 7, 0.3)' },
+  timerPill: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.25)', 
+    paddingHorizontal: 8, 
+    paddingVertical: 4, 
+    borderRadius: 12, 
+    borderWidth: 1, 
+    borderColor: 'rgba(255, 193, 7, 0.3)' 
+  },
   timerPillWarning: { backgroundColor: 'rgba(255, 69, 58, 0.2)', borderColor: 'rgba(255, 69, 58, 0.5)' },
   timerTxt: { color: COLORS.ACCENT, fontWeight: '700', fontSize: 13, fontVariant: ['tabular-nums'] },
   timerTxtWarning: { color: COLORS.DANGER },
   
-  suggestBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.WARNING, justifyContent: 'center', alignItems: 'center' },
-  endBtn: { backgroundColor: COLORS.DANGER, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  // Restored Buttons
+  suggestBtn: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    backgroundColor: COLORS.WARNING, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  endBtn: { 
+    backgroundColor: COLORS.DANGER, 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 6 
+  },
   endBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+  menuBtn: { marginLeft: 4 }, // Added missing style for 3-dots
 
+  // --- KUNDLI ---
   kundliHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: COLORS.BORDER },
   kundliHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   kundliHeaderText: { fontSize: 15, fontWeight: '700', color: COLORS.PRIMARY },
@@ -49,6 +85,7 @@ export const styles = StyleSheet.create({
   kundliInfoLabel: { fontSize: 13, fontWeight: '600', color: COLORS.TEXT_LIGHT, width: 100 },
   kundliInfoValue: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.TEXT_DARK },
 
+  // --- CHAT LIST ---
   chatBackground: { flex: 1, backgroundColor: COLORS.BG_CHAT },
   listContent: { paddingHorizontal: 10, paddingVertical: 20 },
 
@@ -85,10 +122,52 @@ export const styles = StyleSheet.create({
   leftTail: { position: 'absolute', top: 0, left: -6, width: 0, height: 0, borderTopWidth: 8, borderTopColor: COLORS.BUBBLE_USER, borderLeftWidth: 8, borderLeftColor: 'transparent' },
   rightTail: { position: 'absolute', top: 0, right: -6, width: 0, height: 0, borderTopWidth: 8, borderTopColor: COLORS.BUBBLE_ASTRO, borderRightWidth: 8, borderRightColor: 'transparent' },
 
-  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 10 : 12, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: COLORS.BORDER },
-  input: { flex: 1, backgroundColor: COLORS.BG, color: COLORS.TEXT_DARK, borderRadius: 20, paddingHorizontal: 15, paddingVertical: 10, paddingTop: 10, marginRight: 10, fontSize: 15, maxHeight: 100, borderWidth: 1, borderColor: COLORS.BORDER },
-  sendButton: { backgroundColor: COLORS.PRIMARY, width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 2, ...Platform.select({ ios: { shadowColor: COLORS.PRIMARY, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 }, android: { elevation: 4 } }) },
+  // --- INPUT & FOOTER ---
+  inputWrapper: { backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: COLORS.BORDER }, // Added wrapper for better KeyboardAvoiding
+  inputContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-end', 
+    paddingHorizontal: 12, 
+    paddingTop: 10, 
+    paddingBottom: Platform.OS === 'ios' ? 10 : 12, 
+    backgroundColor: '#FFF'
+  },
+  input: { 
+    flex: 1, 
+    backgroundColor: COLORS.BG, 
+    color: COLORS.TEXT_DARK, 
+    borderRadius: 20, 
+    paddingHorizontal: 15, 
+    paddingVertical: 10, 
+    paddingTop: 10, 
+    marginRight: 10, 
+    fontSize: 15, 
+    maxHeight: 100, 
+    borderWidth: 1, 
+    borderColor: COLORS.BORDER 
+  },
+  sendButton: { 
+    backgroundColor: COLORS.PRIMARY, 
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 2, 
+    ...Platform.select({ 
+      ios: { shadowColor: COLORS.PRIMARY, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 }, 
+      android: { elevation: 4 } 
+    }) 
+  },
   sendButtonDisabled: { backgroundColor: COLORS.TEXT_LIGHT, opacity: 0.5 },
-  waitingText: { textAlign: 'center', color: COLORS.TEXT_LIGHT, fontSize: 12, paddingVertical: 8, backgroundColor: 'rgba(255, 193, 7, 0.1)', borderTopWidth: 1, borderTopColor: 'rgba(255, 193, 7, 0.3)' },
+  waitingText: { 
+    textAlign: 'center', 
+    color: COLORS.TEXT_LIGHT, 
+    fontSize: 12, 
+    paddingVertical: 8, 
+    backgroundColor: 'rgba(255, 193, 7, 0.1)', 
+    borderTopWidth: 1, 
+    borderTopColor: 'rgba(255, 193, 7, 0.3)' 
+  },
   footerBanner: { padding: 15, backgroundColor: COLORS.PRIMARY, alignItems: 'center' },
 });

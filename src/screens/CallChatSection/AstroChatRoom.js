@@ -60,7 +60,7 @@ useEffect(() => {
   if (Platform.OS !== 'android') return;
 
   const showSub = Keyboard.addListener('keyboardDidShow', () => {
-    setAndroidKavBehavior('height');
+    setAndroidKavBehavior('padding');
   });
 
   const hideSub = Keyboard.addListener('keyboardDidHide', () => {
@@ -521,48 +521,58 @@ useEffect(() => {
 
   return (
     <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
-      <KeyboardAvoidingView
-  style={{ flex: 1 }}
-  behavior={Platform.OS === 'ios' ? 'padding' : androidKavBehavior}
-  keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
->
-
         
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#FFF" />
-            </TouchableOpacity>
-            <View style={styles.avatarContainer}>
-              <Image source={{ uri: userData?.profilePicture || 'https://via.placeholder.com/40' }} style={styles.avatar} />
-              {isActive && <View style={styles.onlineDot} />}
-            </View>
-            <View style={styles.headerInfo}>
-              <Text style={styles.headerTitle} numberOfLines={1}>{userData?.name || 'User'}</Text>
-              <Text style={styles.headerSubtitle}>{isActive ? 'Active now' : sessionStatus === 'waiting' ? 'Waiting...' : 'Ended'}</Text>
-            </View>
+        {/* 1. COMPACT HEADER */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: userData?.profilePicture || 'https://via.placeholder.com/40' }} style={styles.avatar} />
+            {isActive && <View style={styles.onlineDot} />}
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity onPress={handleOptionsPress} style={{ marginRight: 15 }}>
-                <Ionicons name="ellipsis-vertical" size={20} color="#FFF" />
-             </TouchableOpacity>
-            {isActive && (
-              <>
-                <View style={[styles.timerPill, secondsLeft < 60 && styles.timerPillWarning]}>
-                  <Ionicons name="time-outline" size={14} color={secondsLeft < 60 ? COLORS.DANGER : COLORS.ACCENT} style={{ marginRight: 4 }} />
-                  <Text style={[styles.timerTxt, secondsLeft < 60 && styles.timerTxtWarning]}>{formatTime(secondsLeft)}</Text>
-                </View>
-                <TouchableOpacity style={styles.suggestBtn} onPress={handleSuggestRemedies}>
-                  <Ionicons name="bulb" size={16} color="#FFF" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.endBtn} onPress={endChat}>
-                  <Text style={styles.endBtnText}>End</Text>
-                </TouchableOpacity>
-              </>
-            )}
+          
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle} numberOfLines={1}>{userData?.name || 'User'}</Text>
+            <Text style={styles.headerSubtitle}>
+              {!isActive ? (sessionStatus === 'waiting' ? 'Waiting...' : 'Ended') : 'Online'}
+            </Text>
           </View>
+        </View> 
+
+        {/* COMPACT ACTIONS */}
+        <View style={styles.headerActions}>
+          {isActive && (
+            <>
+              {/* Timer Pill */}
+              <View style={[styles.timerPill, secondsLeft < 60 && styles.timerPillWarning]}>
+                <Ionicons name="time-outline" size={14} color={secondsLeft < 60 ? COLORS.DANGER : COLORS.ACCENT} style={{ marginRight: 4 }} />
+                <Text style={[styles.timerTxt, secondsLeft < 60 && styles.timerTxtWarning]}>
+                  {formatTime(secondsLeft)}
+                </Text>
+              </View>
+
+              {/* Suggest Button */}
+              <TouchableOpacity style={styles.suggestBtn} onPress={handleSuggestRemedies}>
+                <Ionicons name="bulb" size={16} color="#FFF" />
+              </TouchableOpacity>
+
+              {/* End Button */}
+              <TouchableOpacity style={styles.endBtn} onPress={endChat}>
+                <Text style={styles.endBtnText}>End</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* 3-Dots Menu */}
+          <TouchableOpacity style={styles.menuBtn} onPress={handleOptionsPress}>
+             <Ionicons name="ellipsis-vertical" size={20} color="#FFF" />
+          </TouchableOpacity>
         </View>
+      </View>
+
 
         {/* Kundli */}
         {userData?.kundli && (
@@ -601,6 +611,11 @@ useEffect(() => {
             showsVerticalScrollIndicator={false}
           />
         </ImageBackground>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
 
         {/* Input Area */}
         {isActive || sessionStatus === 'waiting' ? (

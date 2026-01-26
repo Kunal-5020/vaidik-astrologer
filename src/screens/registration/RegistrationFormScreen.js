@@ -1,6 +1,4 @@
-// src/screens/auth/RegistrationFormScreen.js
-
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,9 +12,11 @@ import {
   ActivityIndicator,
   Vibration,
   Linking,
+  Dimensions,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useRegistration } from '../../contexts';
 import ProfileImageModal from '../../component/ProfileImageModal';
 import {
@@ -24,777 +24,389 @@ import {
   checkMediaPermissions,
 } from '../../utils/permissions';
 import { uploadService } from '../../services/api/upload.service';
-import { styles } from '../../style/RegistrationFormStyle';
+import { styles } from '../../style/RegistrationFormStyle'; 
 import ScreenWrapper from '../../component/ScreenWrapper';
 
-// ===== CONSTANTS =====
-
+const { width } = Dimensions.get('window');
 const TOTAL_STEPS = 8;
 
 const SKILLS_DATA = [
-  'vedic',
-  'numerology',
-  'tarot',
-  'palmistry',
-  'vastu',
-  'face-reading',
-  'kp',
-  'nadi',
-  'horoscope',
-  'kundli',
-  'prashna',
-  'muhurat',
-  'life-coach',
-  'psychic'
+  'Vedic', 'Numerology', 'Tarot', 'Palmistry', 'Vastu', 
+  'Face Reading', 'KP', 'Nadi', 'Horoscope', 'Kundli', 
+  'Prashna', 'Muhurat', 'Life Coach', 'Psychic'
 ];
+
+const LANGUAGES_DATA = ['Hindi', 'English', 'Marathi', 'Gujarati', 'Punjabi', 'Bengali', 'Tamil', 'Telugu', 'Kannada', 'Other'];
 
 const INITIAL_FORM_STATE = {
   name: '',
   email: '',
   dateOfBirth: null,
-  gender: 'null',
+  gender: '',
   bio: '',
   skills: [],
-  languages: { Hindi: false, English: false, Marathi: false, Other: false },
+  languages: [],
   phoneModel: '',
   profilePicture: null,
 };
 
-// ===== MAIN COMPONENT =====
-
 export default function RegistrationFormScreen({ navigation, route }) {
   const { saveRegistrationData, submitRegistration, state } = useRegistration();
-
-  // ✅ Get verified phone from route params
-  const verifiedPhone = route?.params?.phoneNumber || state.phoneNumber;
+  // Fallback to state if route params are missing
+  const verifiedPhone = route?.params?.phone || state.phoneNumber;
   const verifiedCountryCode = route?.params?.countryCode || state.countryCode;
 
-  // ===== STATE (ALL useState FIRST) =====
+  // ===== STATE =====
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(INITIAL_FORM_STATE);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // ===== EFFECTS =====
-
-  useEffect(() => {
-    if (DEV_MODE) {
-      console.log('📱 Verified Phone:', verifiedPhone);
-      console.log('🌍 Country Code:', verifiedCountryCode);
-    }
-  }, [verifiedPhone, verifiedCountryCode]);
-
-  // ===== FORM HANDLERS (ALL useCallback IN ORDER) =====
-
+  // ===== HANDLERS =====
   const updateField = useCallback((key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const toggleSelection = useCallback((key, item) => {
+    setForm(prev => {
+      const current = prev[key] || [];
+      const isSelected = current.includes(item);
+      const newItems = isSelected
+        ? current.filter(i => i !== item)
+        : [...current, item];
+      return { ...prev, [key]: newItems };
+    });
     Vibration.vibrate(5);
   }, []);
 
-  const toggleLanguage = useCallback(lang => {
-    setForm(prev => ({
-      ...prev,
-      languages: { ...prev.languages, [lang]: !prev.languages[lang] },
-    }));
-    Vibration.vibrate(10);
-  }, []);
-
-  const toggleSkill = useCallback(skill => {
-    setForm(prev => {
-      const current = prev.skills || [];
-      const newSkills = current.includes(skill)
-        ? current.filter(s => s !== skill)
-        : [...current, skill];
-      return { ...prev, skills: newSkills };
-    });
-    Vibration.vibrate(10);
-  }, []);
-
-  const onChangeDate = useCallback(
-    (event, selectedDate) => {
-      setShowDatePicker(false);
-      if (selectedDate) {
-        updateField('dateOfBirth', selectedDate.toISOString().split('T')[0]);
-        Vibration.vibrate(20);
-      }
-    },
-    [updateField]
-  );
-
-  // ===== IMAGE HANDLERS (DEFINE IN CORRECT ORDER) =====
-
-  // ✅ 1. Define openCamera first
-  const openCamera = useCallback(() => {
-    setShowImageModal(false);
-
-    launchCamera(
-      {
-        mediaType: 'photo',
-        cameraType: 'front',
-        saveToPhotos: true,
-        quality: 0.8,
-      },
-      response => {
-        if (response.didCancel) {
-          console.log('📷 Camera cancelled');
-          return;
-        }
-
-        if (response.errorCode) {
-          console.error('❌ Camera error:', response.errorMessage);
-
-          if (response.errorCode === 'permission') {
-            Alert.alert(
-              'Camera Permission Denied',
-              'Please enable Camera permission in Settings.',
-              [
-                {
-                  text: 'Open Settings',
-                  onPress: () => Linking.openSettings(),
-                },
-                { text: 'Cancel', style: 'cancel' },
-              ]
-            );
-          } else {
-            Alert.alert('Error', 'Camera error: ' + response.errorMessage);
-          }
-          return;
-        }
-
-        if (response.assets && response.assets[0]) {
-          updateField('profilePicture', response.assets[0].uri);
-          Vibration.vibrate(50);
-
-          if (DEV_MODE) {
-            console.log('✅ Camera image selected:', response.assets[0].uri);
-          }
-        }
-      }
-    );
+  const onChangeDate = useCallback((event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      updateField('dateOfBirth', selectedDate.toISOString().split('T')[0]);
+    }
   }, [updateField]);
 
-  // ✅ 2. Define openGallery second
-  const openGallery = useCallback(() => {
+  // ===== IMAGE PICKER =====
+  const handleImagePick = async (type) => {
     setShowImageModal(false);
-
-    launchImageLibrary(
-      {
-        mediaType: 'photo',
-        quality: 0.8,
-        selectionLimit: 1,
-      },
-      response => {
-        if (response.didCancel) {
-          console.log('🖼️ Gallery cancelled');
-          return;
-        }
-
-        if (response.errorCode) {
-          console.error('❌ Gallery error:', response.errorMessage);
-
-          if (response.errorCode === 'permission') {
-            Alert.alert(
-              'Gallery Permission Denied',
-              'Please enable Gallery/Photos permission in Settings.',
-              [
-                {
-                  text: 'Open Settings',
-                  onPress: () => Linking.openSettings(),
-                },
-                { text: 'Cancel', style: 'cancel' },
-              ]
-            );
-          } else {
-            Alert.alert('Error', 'Gallery error: ' + response.errorMessage);
-          }
-          return;
-        }
-
-        if (response.assets && response.assets[0]) {
-          updateField('profilePicture', response.assets[0].uri);
-          Vibration.vibrate(50);
-
-          if (DEV_MODE) {
-            console.log('✅ Gallery image selected:', response.assets[0].uri);
-          }
-        }
+    const options = { mediaType: 'photo', quality: 0.7, selectionLimit: 1 };
+    
+    const callback = (res) => {
+      if (res.assets?.[0]?.uri) {
+        updateField('profilePicture', res.assets[0].uri);
+      } else if (res.errorCode) {
+        Alert.alert('Error', res.errorMessage);
       }
-    );
-  }, [updateField]);
+    };
 
-  // ✅ 3. Define removePhoto third
-  const removePhoto = useCallback(() => {
-    updateField('profilePicture', null);
-    setShowImageModal(false);
-    Vibration.vibrate(30);
-  }, [updateField]);
+    if (type === 'camera') launchCamera(options, callback);
+    else launchImageLibrary(options, callback);
+  };
 
-  // ✅ 4. NOW define handleProfileImagePress (after all dependencies)
-  const handleProfileImagePress = useCallback(async () => {
-    Vibration.vibrate(10);
-
-    // Check current permission status
-    const currentStatus = await checkMediaPermissions();
-
-    if (currentStatus.allGranted) {
+  const checkPermissionsAndShowModal = async () => {
+    if (Platform.OS === 'android') {
+        setShowImageModal(true);
+        return;
+    }
+    const status = await checkMediaPermissions();
+    if (status.allGranted) {
       setShowImageModal(true);
-      return;
+    } else {
+      const request = await requestAllMediaPermissions();
+      if (request.camera || request.gallery) setShowImageModal(true);
+      else Alert.alert('Permission Required', 'Please enable permissions in settings.');
     }
-
-    // Request both permissions
-    const permissions = await requestAllMediaPermissions();
-
-    if (DEV_MODE) {
-      console.log('📋 Permission Results:', permissions);
-    }
-
-    if (!permissions.camera && !permissions.gallery) {
-      Alert.alert(
-        'Permissions Required',
-        'Camera and Gallery permissions are needed to upload a profile picture. Please enable them in Settings.',
-        [
-          {
-            text: 'Open Settings',
-            onPress: () => {
-              if (Platform.OS === 'ios') {
-                Linking.openURL('app-settings:');
-              } else {
-                Linking.openSettings();
-              }
-            },
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-      return;
-    }
-
-    // Open modal even if one permission is granted
-    setShowImageModal(true);
-  }, []); // ✅ No dependencies needed (uses state setters)
+  };
 
   // ===== VALIDATION =====
-
-  const validateEmail = useCallback(mail => {
-    if (!mail) return true;
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(String(mail).toLowerCase());
-  }, []);
-
   const isStepValid = useMemo(() => {
     switch (step) {
-      case 1:
-        return form.name.trim().length > 0;
-      case 2:
-        return !!form.dateOfBirth;
-      case 3:
-        return form.gender && form.gender !== 'null';
-      case 4:
-        return Object.values(form.languages).some(v => v);
-      case 5:
-        return form.skills.length > 0;
-      case 6:
-        return !!form.phoneModel;
-      case 7:
-        return form.email === '' || validateEmail(form.email);
-      case 8:
-        return !!form.profilePicture;
-      default:
-        return false;
+      case 1: return form.name.trim().length > 2;
+      case 2: return !!form.dateOfBirth;
+      case 3: return !!form.gender;
+      case 4: return form.languages.length > 0;
+      case 5: return form.skills.length > 0;
+      case 6: return !!form.phoneModel;
+      case 7: return !form.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+      case 8: return !!form.profilePicture;
+      default: return false;
     }
-  }, [step, form, validateEmail]);
+  }, [step, form]);
 
   // ===== NAVIGATION =====
-
-  const prev = useCallback(() => {
-    if (step > 1) {
-      setStep(s => s - 1);
-      Vibration.vibrate(20);
-    }
-  }, [step]);
-
-  const next = useCallback(async () => {
-    if (!isStepValid) {
-      Vibration.vibrate([0, 100, 50, 100]);
-      Alert.alert('Validation', 'Please complete the current step');
-      return;
-    }
+  const handleNext = async () => {
+    if (!isStepValid) return;
 
     if (step < TOTAL_STEPS) {
-      await saveRegistrationData(form);
       setStep(s => s + 1);
-      Vibration.vibrate(30);
-
-      if (step + 1 === 2) setShowDatePicker(true);
     } else {
-      // ===== FINAL SUBMISSION =====
+      // Final Submit
       try {
-        if (DEV_MODE) console.log('🔵 Starting registration submission...');
-
+        setUploadingImage(true);
         let profilePictureUrl = form.profilePicture;
 
-        // ✅ Upload profile picture
-        if (form.profilePicture && form.profilePicture.startsWith('file://')) {
-          setUploadingImage(true);
-
-          try {
-            const uploadResult = await uploadService.uploadImage(
-              form.profilePicture
-            );
-            profilePictureUrl = uploadResult.url;
-            if (DEV_MODE) console.log('✅ Image uploaded:', profilePictureUrl);
-          } catch (uploadError) {
-            console.error('❌ Upload failed:', uploadError);
-            Alert.alert(
-              'Upload Failed',
-              uploadError.message || 'Failed to upload profile picture'
-            );
-            return;
-          } finally {
-            setUploadingImage(false);
-          }
+        // Upload Image if it's local
+        if (form.profilePicture?.startsWith('file://')) {
+          const uploadRes = await uploadService.uploadImage(form.profilePicture);
+          profilePictureUrl = uploadRes.url;
         }
 
-        // ✅ Convert languages to array
-        const selectedLanguages = Object.keys(form.languages).filter(
-          lang => form.languages[lang] === true
-        );
-
-        // ✅ Prepare final data
+        // ✅ FIX: Map data to match Backend DTO structure
         const finalData = {
           phoneNumber: verifiedPhone,
           countryCode: verifiedCountryCode,
           name: form.name.trim(),
           email: form.email.trim(),
           dateOfBirth: form.dateOfBirth,
-          gender: form.gender,
+          gender: form.gender.toLowerCase(), // ✅ FIX: Lowercase gender
           bio: form.bio.trim(),
           skills: form.skills,
-          languagesKnown: selectedLanguages,
+          languagesKnown: form.languages, // ✅ FIX: Map 'languages' to 'languagesKnown'
           profilePicture: profilePictureUrl,
+          phoneModel: form.phoneModel,
         };
 
-        if (DEV_MODE) {
-          console.log('📤 Submitting:', JSON.stringify(finalData, null, 2));
-        }
+        console.log("Submitting Data:", finalData); // Debug log
 
-        await saveRegistrationData(finalData);
         await submitRegistration(finalData);
-
-        Vibration.vibrate([0, 50, 100, 50]);
         navigation.replace('ThankYou');
       } catch (error) {
-        Vibration.vibrate([0, 100, 50, 100]);
-        console.error('❌ Registration Error:', error);
-
-        let errorMessage = 'Registration failed. Please try again.';
-
-        if (error.formattedMessage) {
-          errorMessage = error.formattedMessage;
-        } else if (error.response?.data?.message) {
-          const msg = error.response.data.message;
-          errorMessage = Array.isArray(msg) ? msg.join(', ') : msg;
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-
-        Alert.alert('Error', errorMessage);
+        console.error("Registration Error", error);
+        const errMsg = error.response?.data?.message 
+            ? (Array.isArray(error.response.data.message) ? error.response.data.message.join('\n') : error.response.data.message)
+            : error.message;
+        Alert.alert('Submission Failed', errMsg);
+      } finally {
+        setUploadingImage(false);
       }
     }
-  }, [
-    isStepValid,
-    step,
-    form,
-    verifiedPhone,
-    verifiedCountryCode,
-    saveRegistrationData,
-    submitRegistration,
-    navigation,
-  ]);
+  };
 
-  // ===== STEP INDICATOR =====
+  // ===== RENDERERS =====
+  const renderProgressBar = () => (
+    <View style={styles.progressContainer}>
+      <View style={styles.progressTextRow}>
+        <Text style={styles.stepTitle}>Step {step} of {TOTAL_STEPS}</Text>
+        <Text style={styles.stepPercentage}>{Math.round((step / TOTAL_STEPS) * 100)}%</Text>
+      </View>
+      <View style={styles.track}>
+        <View style={[styles.fill, { width: `${(step / TOTAL_STEPS) * 100}%` }]} />
+      </View>
+    </View>
+  );
 
-  const StepIndicator = useMemo(() => {
-    const steps = Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1);
-
-    return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.stepScrollContent}
-        style={styles.stepScrollView}
-      >
-        <View style={styles.stepRow}>
-          {steps.map((num, i) => {
-            const active = num === step;
-            const done = num < step;
-            return (
-              <React.Fragment key={num}>
-                <View
-                  style={[
-                    styles.stepDot,
-                    active && styles.stepDotActive,
-                    done && styles.stepDotDone,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.stepDotText,
-                      active && styles.stepDotTextActive,
-                      done && styles.stepDotTextDone,
-                    ]}
-                  >
-                    {num}
-                  </Text>
-                </View>
-
-                {i !== steps.length - 1 && (
-                  <View
-                    style={[
-                      styles.connector,
-                      { backgroundColor: done ? '#5b2b84' : '#efe6fb' },
-                    ]}
-                  />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </View>
-      </ScrollView>
-    );
-  }, [step]);
-
-  // ===== STEP CONTENT =====
-
-  const renderStepContent = useCallback(() => {
+  const renderContent = () => {
     switch (step) {
-      case 1:
+      case 1: // Name
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.label}>Name (नाम)</Text>
+          <>
+            <Text style={styles.heading}>What is your name?</Text>
+            <Text style={styles.subHeading}>This will be displayed to users.</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your full name"
+              placeholder="Enter Full Name"
               placeholderTextColor="#999"
               value={form.name}
               onChangeText={t => updateField('name', t)}
               autoFocus
-              returnKeyType="next"
-              onSubmitEditing={() => isStepValid && next()}
             />
-          </View>
+          </>
         );
-
-      case 2:
+      case 2: // DOB
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.label}>Date of Birth (जन्म तिथि)</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={{ color: form.dateOfBirth ? '#111' : '#999' }}>
-                {form.dateOfBirth
-                  ? new Date(form.dateOfBirth).toLocaleDateString('en-IN', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })
-                  : 'Select your date of birth'}
+          <>
+            <Text style={styles.heading}>When were you born?</Text>
+            <Text style={styles.subHeading}>Used to calculate your astrological profile.</Text>
+            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateBtn}>
+              <Text style={form.dateOfBirth ? styles.dateText : styles.placeholderText}>
+                {form.dateOfBirth || 'DD / MM / YYYY'}
               </Text>
+              <Ionicons name="calendar-outline" size={20} color="#666" />
             </TouchableOpacity>
-
             {showDatePicker && (
               <DateTimePicker
-                value={
-                  form.dateOfBirth
-                    ? new Date(form.dateOfBirth)
-                    : new Date(1990, 0, 1)
-                }
+                value={form.dateOfBirth ? new Date(form.dateOfBirth) : new Date(1990, 0, 1)}
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 maximumDate={new Date()}
                 onChange={onChangeDate}
               />
             )}
-          </View>
+          </>
         );
-
-      case 3:
+      case 3: // Gender
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.label}>Gender (लिंग)</Text>
-            <View style={styles.radioContainer}>
-              {['male', 'female', 'other'].map(g => (
+          <>
+            <Text style={styles.heading}>What is your gender?</Text>
+            <View style={styles.selectionGrid}>
+              {['Male', 'Female', 'Other'].map(g => (
                 <TouchableOpacity
                   key={g}
-                  style={styles.radioRow}
+                  style={[styles.card, form.gender === g && styles.cardActive]}
                   onPress={() => updateField('gender', g)}
-                  activeOpacity={0.7}
                 >
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      form.gender === g && styles.radioActive,
-                    ]}
-                  >
-                    {form.gender === g && <View style={styles.radioInner} />}
-                  </View>
-                  <Text style={styles.radioText}>
-                    {g.charAt(0).toUpperCase() + g.slice(1)}
-                  </Text>
+                  <Text style={[styles.cardText, form.gender === g && styles.cardTextActive]}>{g}</Text>
+                  {form.gender === g && <Ionicons name="checkmark-circle" size={20} color="#372643" />}
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </>
         );
-
-      case 4:
+      case 4: // Languages
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.label}>Languages (भाषा)</Text>
-            <Text style={styles.helperText}>Select all that you speak</Text>
-            <View style={styles.languageContainer}>
-              {Object.keys(form.languages).map(l => (
-                <TouchableOpacity
-                  key={l}
-                  onPress={() => toggleLanguage(l)}
-                  style={[
-                    styles.langBtn,
-                    form.languages[l] && styles.langBtnActive,
-                  ]}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={
-                      form.languages[l]
-                        ? styles.langBtnTextActive
-                        : styles.langBtnText
-                    }
+          <>
+            <Text style={styles.heading}>Languages Spoken</Text>
+            <Text style={styles.subHeading}>Select at least one language.</Text>
+            <View style={styles.chipContainer}>
+              {LANGUAGES_DATA.map(lang => {
+                const isActive = form.languages.includes(lang);
+                return (
+                  <TouchableOpacity
+                    key={lang}
+                    style={[styles.chip, isActive && styles.chipActive]}
+                    onPress={() => toggleSelection('languages', lang)}
                   >
-                    {l}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{lang}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
+          </>
         );
-
-      case 5:
+      case 5: // Skills
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.label}>Skills (कोशल)</Text>
-            <Text style={styles.helperText}>Select all that apply</Text>
-            <View style={styles.skillsContainer}>
+          <>
+            <Text style={styles.heading}>Your Expertise</Text>
+            <Text style={styles.subHeading}>Select your primary skills.</Text>
+            <View style={styles.chipContainer}>
               {SKILLS_DATA.map(skill => {
-                const selected = form.skills?.includes(skill);
+                const isActive = form.skills.includes(skill);
                 return (
                   <TouchableOpacity
                     key={skill}
-                    onPress={() => toggleSkill(skill)}
-                    style={[
-                      styles.skillButton,
-                      selected && styles.skillButtonSelected,
-                    ]}
-                    activeOpacity={0.8}
+                    style={[styles.chip, isActive && styles.chipActive]}
+                    onPress={() => toggleSelection('skills', skill)}
                   >
-                    <Text style={[styles.symbol, selected && { color: '#fff' }]}>
-                      {selected ? '✓' : '+'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.skillText,
-                        selected && styles.skillTextSelected,
-                      ]}
-                    >
-                      {skill}
-                    </Text>
+                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{skill}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
+          </>
         );
-
-      case 6:
+      case 6: // Phone
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.label}>Which phone do you use?</Text>
-            <View style={styles.phoneRow}>
-              {['Android', 'iPhone'].map(option => {
-                const selected = form.phoneModel === option;
-                return (
-                  <TouchableOpacity
-                    key={option}
-                    onPress={() => updateField('phoneModel', option)}
-                    style={[
-                      styles.phoneOption,
-                      selected && styles.phoneOptionSelected,
-                    ]}
-                    activeOpacity={0.8}
-                  >
-                    <View
-                      style={[
-                        styles.radioOuter,
-                        selected && styles.radioActive,
-                      ]}
-                    >
-                      {selected && <View style={styles.radioInner} />}
-                    </View>
-                    <Text style={styles.phoneLabel}>{option}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+          <>
+            <Text style={styles.heading}>Device Information</Text>
+            <Text style={styles.subHeading}>Which device do you use for consultations?</Text>
+            <View style={styles.selectionGrid}>
+              {['Android', 'iPhone'].map(p => (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.card, form.phoneModel === p && styles.cardActive]}
+                  onPress={() => updateField('phoneModel', p)}
+                >
+                  <Ionicons name={p === 'Android' ? 'logo-android' : 'logo-apple'} size={24} color={form.phoneModel === p ? '#372643' : '#666'} />
+                  <Text style={[styles.cardText, form.phoneModel === p && styles.cardTextActive, { marginLeft: 10 }]}>{p}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </View>
+          </>
         );
-
-      case 7:
+      case 7: // Email
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.label}>Email Address (ई-मेल)</Text>
-            <Text style={styles.helperText}>Optional</Text>
+          <>
+            <Text style={styles.heading}>Email Address</Text>
+            <Text style={styles.subHeading}>For official communication (Optional).</Text>
             <TextInput
-              placeholder="example@email.com"
+              style={styles.input}
+              placeholder="name@example.com"
               placeholderTextColor="#999"
               value={form.email}
               onChangeText={t => updateField('email', t)}
-              style={styles.input}
               keyboardType="email-address"
               autoCapitalize="none"
-              returnKeyType="done"
-              onSubmitEditing={() => isStepValid && next()}
             />
-          </View>
+          </>
         );
-
-      case 8:
+      case 8: // Profile Pic
         return (
-          <View style={styles.stepContent}>
-            <Text style={styles.labelProfile}>
-              Profile Picture (प्रोफाइल फोटो)
+          <View style={{ alignItems: 'center' }}>
+            <Text style={styles.heading}>Profile Picture</Text>
+            <Text style={[styles.subHeading, { textAlign: 'center' }]}>
+              Upload a professional photo. Face should be clearly visible.
             </Text>
-
-            <View style={styles.profileWrapper}>
-              <View style={styles.profileContainer}>
-                <Image
-                  source={
-                    form.profilePicture
-                      ? { uri: form.profilePicture }
-                      : require('../../assets/man.png')
-                  }
-                  style={styles.profileImage}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={styles.cameraContainer}
-                onPress={handleProfileImagePress}
-                activeOpacity={0.8}
-              >
-                <Image
-                  source={require('../../assets/camera.png')}
-                  style={styles.cameraIcon}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.photoTip}>
-              📸 Make sure your face is centered and clearly visible for the
-              best impression
-            </Text>
-
-            <ProfileImageModal
-              visible={showImageModal}
-              onClose={() => setShowImageModal(false)}
-              onTakePhoto={openCamera}
-              onChooseGallery={openGallery}
-              onRemovePhoto={removePhoto}
-              hasPhoto={!!form.profilePicture}
-            />
+            
+            <TouchableOpacity onPress={checkPermissionsAndShowModal} style={styles.imageUploadBox}>
+              {form.profilePicture ? (
+                <Image source={{ uri: form.profilePicture }} style={styles.uploadedImage} />
+              ) : (
+                <View style={styles.placeholderContainer}>
+                  <Ionicons name="camera" size={40} color="#372643" />
+                  <Text style={styles.uploadText}>Tap to Upload</Text>
+                </View>
+              )}
+              {form.profilePicture && (
+                <View style={styles.editBadge}>
+                  <Ionicons name="pencil" size={14} color="#FFF" />
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         );
-
-      default:
-        return null;
+      default: return null;
     }
-  }, [
-    step,
-    form,
-    showDatePicker,
-    showImageModal,
-    isStepValid,
-    updateField,
-    toggleLanguage,
-    toggleSkill,
-    onChangeDate,
-    handleProfileImagePress,
-    openCamera,
-    openGallery,
-    removePhoto,
-    next,
-  ]);
-
-  // ===== RENDER =====
+  };
 
   return (
-    <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {/* Step Indicator */}
-        <View style={styles.stepperWrap}>{StepIndicator}</View>
-
-        {/* Content */}
-        <ScrollView
-          style={styles.whitePanel}
-          contentContainerStyle={styles.panelContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {renderStepContent()}
-          <View style={{ height: 100 }} />
-        </ScrollView>
-
-        {/* Bottom Buttons */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            onPress={prev}
-            disabled={step === 1 || state.isLoading}
-            style={[
-              styles.prevBtn,
-              (step === 1 || state.isLoading) && { opacity: 0.4 },
-            ]}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.prevText}>Previous</Text>
+    <ScreenWrapper backgroundColor="#372643" barStyle="light-content">
+      <View style={styles.container}>
+        {/* Header Section */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => step > 1 ? setStep(s => s - 1) : navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={next}
-            disabled={!isStepValid || state.isLoading || uploadingImage}
-            style={[
-              styles.nextBtn,
-              (!isStepValid || state.isLoading || uploadingImage) && {
-                opacity: 0.5,
-              },
-            ]}
-            activeOpacity={0.8}
-          >
-            {(state.isLoading || uploadingImage) && step === TOTAL_STEPS ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.nextText}>
-                {step === TOTAL_STEPS ? 'Submit' : 'Next'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Registration</Text>
+          <View style={{ width: 24 }} /> 
         </View>
-      </KeyboardAvoidingView>
+
+        {/* Content Card */}
+        <View style={styles.cardContainer}>
+          {renderProgressBar()}
+          
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {renderContent()}
+          </ScrollView>
+
+          {/* Bottom Bar */}
+          <View style={styles.footer}>
+            <TouchableOpacity 
+              style={[styles.nextButton, !isStepValid && styles.disabledButton]} 
+              onPress={handleNext}
+              disabled={!isStepValid || uploadingImage}
+            >
+              {uploadingImage ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.nextButtonText}>
+                  {step === TOTAL_STEPS ? 'Submit Application' : 'Next'}
+                </Text>
+              )}
+              {!uploadingImage && <Ionicons name="arrow-forward" size={18} color="#FFF" style={{ marginLeft: 8 }} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      <ProfileImageModal
+        visible={showImageModal}
+        onClose={() => setShowImageModal(false)}
+        onTakePhoto={() => handleImagePick('camera')}
+        onChooseGallery={() => handleImagePick('gallery')}
+        onRemovePhoto={() => updateField('profilePicture', null)}
+        hasPhoto={!!form.profilePicture}
+      />
     </ScreenWrapper>
   );
 }
-

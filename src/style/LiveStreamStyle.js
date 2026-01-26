@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet,StatusBar, Platform } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
@@ -9,13 +9,31 @@ export const styles = StyleSheet.create({
   fullVideo: { flex: 1 },
   noVideo: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   noVideoText: { color: '#888', marginTop: 10 },
-  topBar: { position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', alignItems: 'center', zIndex: 10 },
+  // ✅ FIXED: Added dynamic top padding for Status Bar
+  topBar: { 
+    position: 'absolute', 
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 55, // 55 covers iOS Notch/Dynamic Island
+    left: 10, 
+    right: 10, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    zIndex: 10 
+  },
   liveTag: { backgroundColor: '#D32F2F', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginRight: 10 },
   liveText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
   viewersTag: { backgroundColor: 'rgba(0,0,0,0.5)', flexDirection: 'row', padding: 6, borderRadius: 4, alignItems: 'center' },
   viewerText: { color: '#FFF', marginLeft: 6, fontSize: 12 },
   closeBtn: { backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
-  callCard: { position: 'absolute', top: 60, left: 10, right: 10, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, overflow: 'hidden', zIndex: 5 },
+ callCard: { 
+    position: 'absolute', 
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 60 : 110, // Pushed down
+    left: 10, 
+    right: 10, 
+    backgroundColor: 'rgba(255,255,255,0.95)', 
+    borderRadius: 12, 
+    overflow: 'hidden', 
+    zIndex: 5 
+  },
   callCardContent: { flexDirection: 'row', padding: 10, alignItems: 'center' },
   callAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#673AB7', justifyContent: 'center', alignItems: 'center' },
   callAvatarText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },

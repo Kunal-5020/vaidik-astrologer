@@ -9,3 +9,10 @@
 
 # Add any project specific keep options here:
 
+# --- AGORA SDK RULES ---
+-keep class io.agora.** { *; }
+-dontwarn io.agora.**
+
+# --- FIX FOR MISSING DESUGAR CLASS ---
+# References to ThrowableExtension in Agora cause R8 to fail
+-dontwarn com.google.devtools.build.android.desugar.runtime.**

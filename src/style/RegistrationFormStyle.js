@@ -1,58 +1,252 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#5b2b84' },
-  container: { flex: 1, backgroundColor: '#5b2b84' },
-  stepperWrap: { backgroundColor: '#5b2b84', paddingVertical: 24, paddingHorizontal: 0 },
-  stepScrollView: { flexGrow: 0 },
-  stepScrollContent: { paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', flexGrow: 1 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
-  stepDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#efe6fb', alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 },
-  stepDotActive: { backgroundColor: '#ff9a2e', transform: [{ scale: 1.15 }], shadowColor: '#ff9a2e', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 4, elevation: 4 },
-  stepDotDone: { backgroundColor: '#4caf50' },
-  stepDotText: { fontSize: 14, fontWeight: '700', color: '#999' },
-  stepDotTextActive: { color: '#fff' },
-  stepDotTextDone: { color: '#fff' },
-  connector: { height: 2, width: 12, marginHorizontal: 3 },
-  whitePanel: { flex: 1, backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28 },
-  panelContent: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 120 },
-  stepContent: { marginBottom: 16 },
-  label: { fontSize: 17, fontWeight: '700', color: '#1f2937', marginBottom: 10 },
-  labelProfile: { fontSize: 20, fontWeight: '700', color: '#1f2937', marginBottom: 24, textAlign: 'center' },
-  helperText: { fontSize: 13, color: '#6b7280', marginBottom: 10 },
-  input: { backgroundColor: '#f9fafb', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, borderWidth: 1.5, borderColor: '#e5e7eb', color: '#111' },
-  radioContainer: { marginTop: 8 },
-  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
-  radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  radioActive: { borderColor: '#5b2b84' },
-  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#5b2b84' },
-  radioText: { fontSize: 16, color: '#374151', fontWeight: '500' },
-  languageContainer: { marginTop: 8 },
-  langBtn: { backgroundColor: '#f3f4f6', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, marginBottom: 12, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  langBtnActive: { backgroundColor: '#5b2b84', borderColor: '#5b2b84' },
-  langBtnText: { fontSize: 16, color: '#374151', fontWeight: '600' },
-  langBtnTextActive: { fontSize: 16, color: '#fff', fontWeight: '700' },
-  skillsContainer: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-  skillButton: { flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, marginRight: 8, marginBottom: 10, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  skillButtonSelected: { backgroundColor: '#5b2b84', borderColor: '#5b2b84' },
-  symbol: { fontSize: 16, fontWeight: '700', color: '#6b7280', marginRight: 6 },
-  skillText: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  skillTextSelected: { color: '#fff', fontWeight: '600' },
-  phoneRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 12 },
-  phoneOption: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', paddingVertical: 16, paddingHorizontal: 20, borderRadius: 10, borderWidth: 2, borderColor: '#e5e7eb' },
-  phoneOptionSelected: { borderColor: '#5b2b84', backgroundColor: '#f5f0ff' },
-  phoneLabel: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  profileWrapper: { alignItems: 'center', marginVertical: 24 },
-  profileContainer: { width: 150, height: 150, borderRadius: 75, overflow: 'hidden', backgroundColor: '#f3f4f6', borderWidth: 4, borderColor: '#5b2b84' },
-  profileImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  cameraContainer: { position: 'absolute', bottom: 0, right: width * 0.28, width: 50, height: 50, borderRadius: 25, backgroundColor: '#5b2b84', alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 },
-  cameraIcon: { width: 24, height: 24, tintColor: '#fff' },
-  photoTip: { marginTop: 20, color: '#059669', textAlign: 'center', fontSize: 14, lineHeight: 22, paddingHorizontal: 20, fontWeight: '500' },
-  buttonRow: { flexDirection: 'row', position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', paddingVertical: 16, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8 },
-  prevBtn: { flex: 1, backgroundColor: '#f3f4f6', paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginRight: 8 },
-  prevText: { fontSize: 16, fontWeight: '700', color: '#6b7280' },
-  nextBtn: { flex: 1, backgroundColor: '#5b2b84', paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginLeft: 8, shadowColor: '#5b2b84', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  nextText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  container: {
+    flex: 1,
+    backgroundColor: '#372643', // Brand Purple
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  
+  // Card Container (White Sheet)
+  cardContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: 'hidden',
+  },
+  
+  // Progress Bar
+  progressContainer: {
+    paddingHorizontal: 25,
+    paddingTop: 25,
+    paddingBottom: 15,
+  },
+  progressTextRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  stepTitle: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  stepPercentage: {
+    fontSize: 14,
+    color: '#372643',
+    fontWeight: '700',
+  },
+  track: {
+    height: 6,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    backgroundColor: '#FFD700', // Brand Gold
+    borderRadius: 3,
+  },
+
+  // Content Area
+  scrollContent: {
+    paddingHorizontal: 25,
+    paddingTop: 10,
+    paddingBottom: 100,
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  subHeading: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 30,
+    lineHeight: 20,
+  },
+
+  // Inputs
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    fontSize: 16,
+    color: '#111',
+  },
+  dateBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#111',
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#999',
+  },
+
+  // Selection Cards (Gender/Phone)
+  selectionGrid: {
+    gap: 15,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 18,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  cardActive: {
+    borderColor: '#372643',
+    backgroundColor: '#F3E8FF',
+  },
+  cardText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  cardTextActive: {
+    color: '#372643',
+    fontWeight: '700',
+  },
+
+  // Chips (Languages/Skills)
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  chip: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  chipActive: {
+    backgroundColor: '#372643',
+    borderColor: '#372643',
+  },
+  chipText: {
+    fontSize: 14,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // Image Upload
+  imageUploadBox: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    marginTop: 20,
+    position: 'relative',
+  },
+  placeholderContainer: {
+    alignItems: 'center',
+  },
+  uploadText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  uploadedImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 80,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 10,
+    backgroundColor: '#FFD700',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+
+  // Footer / Buttons
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  nextButton: {
+    backgroundColor: '#372643',
+    height: 55,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#372643',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  disabledButton: {
+    backgroundColor: '#D1D5DB',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  nextButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
 });

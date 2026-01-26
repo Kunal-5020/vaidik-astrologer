@@ -253,12 +253,7 @@ const handleVerifyOtp = useCallback(async () => {
   }, []);
 
   return (
-    <ScreenWrapper backgroundColor="#372643" barStyle="light-content">
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Verify OTP</Text>
         <Text style={styles.subtitle}>
@@ -340,7 +335,6 @@ const handleVerifyOtp = useCallback(async () => {
           </Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
     </ScreenWrapper>
   );
 }

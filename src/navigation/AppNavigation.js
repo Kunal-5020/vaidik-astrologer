@@ -10,7 +10,6 @@ import OTPScreen from '../screens/auth/OTPScreen';
 
 // Registration Screens
 import PhoneNumberScreen from '../screens/registration/PhoneNumberScreen';
-import OtpVerificationScreen from '../screens/registration/OtpVerificationScreen';
 import RegistrationFormScreen from '../screens/registration/RegistrationFormScreen';
 import ThankYouScreen from '../screens/registration/ThankYouScreen';
 import CheckStatusScreen from '../screens/registration/CheckStatusScreen';
@@ -107,7 +106,6 @@ const AppNavigation = () => {
 
       {/* ✅ Registration Flow */}
       <Stack.Screen name="RegisterPhone" component={PhoneNumberScreen} />
-      <Stack.Screen name="RegisterOTP" component={OtpVerificationScreen} />
       <Stack.Screen name="RegisterForm" component={RegistrationFormScreen} />
       <Stack.Screen name="ThankYou" component={ThankYouScreen} />
       <Stack.Screen name="CheckStatus" component={CheckStatusScreen} />

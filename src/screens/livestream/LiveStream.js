@@ -9,7 +9,7 @@ import {
   FlatList,
   Animated,
   ActivityIndicator,
-  BackHandler
+  BackHandler,
 } from 'react-native';
 import ScreenWrapper from '../../component/ScreenWrapper';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';

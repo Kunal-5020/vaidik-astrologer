@@ -263,7 +263,7 @@ export default function InterviewDashboardScreen({ navigation }) {
           <Text style={styles.helpText}>
             For any queries regarding your application, please email us at:
           </Text>
-          <Text style={styles.helpEmail}>vaidiktalk@gmail.com</Text>
+          <Text style={styles.helpEmail}>contact@vaidiktalk.com</Text>
         </View>
       </ScrollView>
     </View>

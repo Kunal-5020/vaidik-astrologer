@@ -21,6 +21,7 @@ import AstrologerCallSocket from '../../services/socket/AstrologerCallSocket';
 import AgoraEngine from '../../services/agora/engine';
 import { STORAGE_KEYS } from '../../config/constants';
 import { useSession } from '../../contexts/SessionContext';
+import { styles, COLORS } from '../../style/CallStyle';
 
 
 const CallScreen = ({ route, navigation }) => {

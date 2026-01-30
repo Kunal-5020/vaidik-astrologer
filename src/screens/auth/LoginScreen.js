@@ -55,7 +55,7 @@ const Login = ({ navigation }) => {
     isSdkUsable,
     error: truecallerError,
   } = useTruecaller({
-    androidClientId: '4rxptw6rdoll4cvj6ccb4qobzofhuuznw-ablj5mb_m',
+    androidClientId: 'v-uag18awnreosg17r0gpookwknh8gtgfqm3pjdsjdk',
     androidSuccessHandler: handleTruecallerSuccess,
     scopes: ['profile', 'phone', 'openid'],
   });

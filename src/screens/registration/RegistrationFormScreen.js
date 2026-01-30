@@ -68,6 +68,12 @@ export default function RegistrationFormScreen({ navigation, route }) {
     setForm(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  const eighteenYearsAgo = useMemo(() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d;
+}, []);
+
   const toggleSelection = useCallback((key, item) => {
     setForm(prev => {
       const current = prev[key] || [];
@@ -123,7 +129,12 @@ export default function RegistrationFormScreen({ navigation, route }) {
   const isStepValid = useMemo(() => {
     switch (step) {
       case 1: return form.name.trim().length > 2;
-      case 2: return !!form.dateOfBirth;
+      case 2: {
+      if (!form.dateOfBirth) return false;
+      const birthDate = new Date(form.dateOfBirth);
+      // The button will only enable if selected date is on or before 18 years ago
+      return birthDate <= eighteenYearsAgo;
+    }
       case 3: return !!form.gender;
       case 4: return form.languages.length > 0;
       case 5: return form.skills.length > 0;
@@ -136,6 +147,13 @@ export default function RegistrationFormScreen({ navigation, route }) {
 
   // ===== NAVIGATION =====
   const handleNext = async () => {
+    if (step === 2) {
+    const birthDate = new Date(form.dateOfBirth);
+    if (birthDate > eighteenYearsAgo) {
+      Alert.alert('Age Restriction', 'You must be at least 18 years old.');
+      return;
+    }
+  }
     if (!isStepValid) return;
 
     if (step < TOTAL_STEPS) {
@@ -226,12 +244,14 @@ export default function RegistrationFormScreen({ navigation, route }) {
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
-                value={form.dateOfBirth ? new Date(form.dateOfBirth) : new Date(1990, 0, 1)}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                maximumDate={new Date()}
-                onChange={onChangeDate}
-              />
+          // Default the picker to 18 years ago if no date is selected
+          value={form.dateOfBirth ? new Date(form.dateOfBirth) : eighteenYearsAgo}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          // Hard limit in the UI
+          maximumDate={eighteenYearsAgo} 
+          onChange={onChangeDate}
+        />
             )}
           </>
         );

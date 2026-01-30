@@ -31,23 +31,23 @@ const styles = StyleSheet.create({
     elevation: 10,
     // Removed paddingTop which was for top positioning
   },
-  toastBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff', // Explicit White Background
-    borderRadius: 50,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    // Shadows
-    elevation: 6,
-    shadowColor: '#000', 
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    
-    minWidth: width * 0.4,
-    maxWidth: width * 0.9,
-  },
+toastBox: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#ffffff',
+  borderRadius: 50,
+  paddingVertical: 12,
+  paddingHorizontal: 20,
+
+  // Shadows
+  elevation: 6,
+  shadowColor: '#000',
+  shadowOpacity: 0.15,
+  shadowOffset: { width: 0, height: 2 },
+  shadowRadius: 6,
+
+  maxWidth: width * 0.9,   // 👈 never exceed 90%
+},
   icon: {
     width: 24,
     height: 24,
@@ -59,7 +59,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1, 
     flexWrap: 'wrap',
-    textAlign: 'left',
   },
 });
 

@@ -5,6 +5,6 @@
 // };
 
 export default {
-  API_BASE_URL: 'http://3.109.60.127/api/v1',
-  SOCKET_URL: 'http://3.109.60.127', 
+  API_BASE_URL: 'https://api.vaidiktalk.com/api/v1',
+  SOCKET_URL: 'https://api.vaidiktalk.com', 
 };

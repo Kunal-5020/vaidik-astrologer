@@ -10,6 +10,7 @@ import {
   Animated,
   ActivityIndicator,
   BackHandler,
+  Keyboard
 } from 'react-native';
 import ScreenWrapper from '../../component/ScreenWrapper';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -25,7 +26,7 @@ import { streamSocketService } from '../../services/socket/streamSocketService';
 import { useAuth } from '../../contexts/AuthContext';
 import { styles } from '../../style/LiveStreamStyle';
 import { astrologerService } from '../../services/api/astrologer.service';
-import { KeyboardProvider, KeyboardStickyView } from 'react-native-keyboard-controller';
+import notifee from '@notifee/react-native';
 
 export default function LiveStreamScreen() {
   const navigation = useNavigation();
@@ -133,6 +134,34 @@ export default function LiveStreamScreen() {
   }
   return () => clearInterval(interval);
 }, [isCallTimerActive, callEndTime]);
+
+const startStreamForegroundService = async () => {
+  await notifee.displayNotification({
+    id: 'astro_live_stream',
+    title: 'You are Live',
+    body: 'Your camera and microphone are active for the livestream.',
+    android: {
+      channelId: 'astrologer_alert_v1',
+      asForegroundService: true, 
+      ongoing: true,
+      color: '#FFC107',
+      pressAction: { id: 'default', launchActivity: 'default' },
+    },
+  });
+};
+
+const stopStreamForegroundService = async () => {
+  await notifee.stopForegroundService();
+};
+
+// Start when the stream initializes, stop on cleanup
+useEffect(() => {
+  startStreamForegroundService();
+  
+  return () => {
+    stopStreamForegroundService();
+  };
+}, []);
 
   const initializeAgora = async () => {
     try {
@@ -462,136 +491,129 @@ export default function LiveStreamScreen() {
   };
 
 return (
-    // ✅ 1. Wrap with KeyboardProvider
-    <KeyboardProvider statusBarTranslucent>
       <ScreenWrapper 
-        backgroundColor="#000000" 
-        barStyle="light-content" 
-        translucent={true}
-        safeAreaTop={false} 
-        safeAreaBottom={false}
-      >
-        <View style={styles.container}> 
-          
-          {/* Main Content Area (Video + Overlay) */}
-          <View style={{ flex: 1 }}>
-            <TouchableOpacity activeOpacity={1} onPress={() => { setShowControls(!showControls); Keyboard.dismiss(); }} style={styles.videoContainer}>
-                {currentCall && currentCall.callType === 'video' ? (
+      backgroundColor="#000000" 
+      barStyle="light-content" 
+      avoidKeyboard={true}
+      translucent={true}
+      safeAreaTop={false} 
+      safeAreaBottom={false}
+    >
+        
+        {/* Main Content Area (Video + Chat List) */}
+        <View style={{ flex: 1 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => { setShowControls(!showControls); Keyboard.dismiss(); }} style={styles.videoContainer}>
+              {currentCall && currentCall.callType === 'video' ? (
                 <View style={styles.splitScreen}>
-                    <View style={styles.videoHalf}>
+                  <View style={styles.videoHalf}>
                     {isCameraEnabled ? <RtcSurfaceView style={styles.fullVideo} canvas={{ uid: 0 }} renderMode={1} /> : <View style={styles.noVideo}><Text style={styles.noVideoText}>Camera Off</Text></View>}
-                    </View>
-                    <View style={styles.videoHalf}>
+                  </View>
+                  <View style={styles.videoHalf}>
                     {currentCall.callerAgoraUid && remoteUsers.has(currentCall.callerAgoraUid) ? <RtcSurfaceView style={styles.fullVideo} canvas={{ uid: currentCall.callerAgoraUid }} zOrderMediaOverlay={true} renderMode={1} /> : <View style={styles.noVideo}><ActivityIndicator color="#FFB300" size="large" /></View>}
-                    </View>
+                  </View>
                 </View>
-                ) : (
+              ) : (
                 <View style={styles.fullScreenVideo}>
-                    {isJoined && isCameraEnabled ? <RtcSurfaceView style={styles.fullVideo} canvas={{ uid: 0 }} renderMode={1} /> : <View style={styles.noVideo}><Text style={styles.noVideoText}>Camera Off</Text></View>}
+                  {isJoined && isCameraEnabled ? <RtcSurfaceView style={styles.fullVideo} canvas={{ uid: 0 }} renderMode={1} /> : <View style={styles.noVideo}><Text style={styles.noVideoText}>Camera Off</Text></View>}
                 </View>
-                )}
-            </TouchableOpacity>
+              )}
+          </TouchableOpacity>
 
-            {/* Gift Animations */}
-            {(activeGifts || []).map(g => (
-                <Animated.View key={g.id} style={[styles.giftAnim, { opacity: giftAnimValue }]}>
-                <Text style={{ fontSize: 40 }}>🎁</Text>
-                <Text style={styles.giftText}>{g.userName} sent {g.giftName}!</Text>
-                </Animated.View>
-            ))}
+          {/* Gift Animations */}
+          {(activeGifts || []).map(g => (
+            <Animated.View key={g.id} style={[styles.giftAnim, { opacity: giftAnimValue }]}>
+              <Text style={{ fontSize: 40 }}>🎁</Text>
+              <Text style={styles.giftText}>{g.userName} sent {g.giftName}!</Text>
+            </Animated.View>
+          ))}
 
-            {showControls && (
-                <View style={styles.topBar}>
-                <View style={styles.liveTag}><Text style={styles.liveText}>LIVE</Text></View>
-                <View style={styles.viewersTag}><Icon name="visibility" color="#FFF" size={16} /><Text style={styles.viewerText}>{viewerCount}</Text></View>
-                <View style={{ flex: 1 }} />
-                <TouchableOpacity style={styles.closeBtn} onPress={handleEndStream}><Icon name="close" color="#FFF" size={24} /></TouchableOpacity>
-                </View>
-            )}
-
-            {/* Call Card */}
-            {currentCall && (
-                <View style={styles.callCard}>
-                <View style={styles.callCardContent}>
-                    <View style={styles.callAvatar}><Text style={styles.callAvatarText}>{currentCall.userName.charAt(0)}</Text></View>
-                    <View style={{ flex: 1, marginLeft: 10 }}><Text style={styles.callUser}>{currentCall.userName}</Text><Text style={styles.callType}>{currentCall.callType}</Text></View>
-                    <View style={styles.timerBadge}>
-                        <View style={styles.redDot} />
-                        <Text style={styles.timerText}>
-                            {Math.floor(callTimer/60)}:{(callTimer%60).toString().padStart(2,'0')}
-                        </Text>
-                    </View>
-                </View>
-                <TouchableOpacity style={styles.endCallBar} onPress={endCurrentCall}><Text style={styles.endCallText}>END CALL</Text></TouchableOpacity>
-                </View>
-            )}
-
-            {/* Chat Area */}
-            <View style={styles.chatArea}>
-                <FlatList
-                data={messages || []}
-                keyExtractor={item => item.id.toString()}
-                renderItem={({ item }) => (
-                    <TouchableOpacity
-                    activeOpacity={0.8}
-                    onLongPress={() => handleCommentLongPress(item)}
-                    delayLongPress={300}
-                    >
-                    <View style={styles.chatBubble}>
-                        <Text style={styles.chatUser}>{item.userName}</Text>
-                        <Text style={styles.chatMsg}>{item.comment || item.message}</Text>
-                    </View>
-                    </TouchableOpacity>
-                )}
-                style={{ maxHeight: 200 }}
-                showsVerticalScrollIndicator={false}
-                />
+          {showControls && (
+            <View style={styles.topBar}>
+              <View style={styles.liveTag}><Text style={styles.liveText}>LIVE</Text></View>
+              <View style={styles.viewersTag}><Icon name="visibility" color="#FFF" size={16} /><Text style={styles.viewerText}>{viewerCount}</Text></View>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.closeBtn} onPress={handleEndStream}><Icon name="close" color="#FFF" size={24} /></TouchableOpacity>
             </View>
-          </View>
+          )}
 
-          {/* ✅ 2. Sticky Bottom Bar */}
-          <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
-            <View style={styles.bottomBar}>
-                <TextInput 
-                style={styles.chatInput} placeholder="Say something..." placeholderTextColor="#DDD"
-                value={chatInput} onChangeText={setChatInput} onSubmitEditing={sendMessage}
-                />
-                <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}><Icon name="send" color="#FFF" size={20} /></TouchableOpacity>
-                <TouchableOpacity onPress={toggleMic} style={[styles.controlBtn, !isMicEnabled && styles.btnDisabled]}><Icon name={isMicEnabled ? "mic" : "mic-off"} size={24} color="#FFF" /></TouchableOpacity>
-                <TouchableOpacity onPress={toggleCamera} style={[styles.controlBtn, !isCameraEnabled && styles.btnDisabled]}><Icon name={isCameraEnabled ? "videocam" : "videocam-off"} size={24} color="#FFF" /></TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowWaitlistModal(true)} style={styles.waitlistBtn}>
-                <Icon name="list" size={24} color="#FFF" />
-                {callWaitlist.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{callWaitlist.length}</Text></View>}
+          {/* Call Card */}
+          {currentCall && (
+            <View style={styles.callCard}>
+              <View style={styles.callCardContent}>
+                <View style={styles.callAvatar}><Text style={styles.callAvatarText}>{currentCall.userName.charAt(0)}</Text></View>
+                <View style={{ flex: 1, marginLeft: 10 }}><Text style={styles.callUser}>{currentCall.userName}</Text><Text style={styles.callType}>{currentCall.callType}</Text></View>
+                <View style={styles.timerBadge}>
+                    <View style={styles.redDot} />
+                    <Text style={styles.timerText}>
+                        {Math.floor(callTimer/60)}:{(callTimer%60).toString().padStart(2,'0')}
+                    </Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.endCallBar} onPress={endCurrentCall}><Text style={styles.endCallText}>END CALL</Text></TouchableOpacity>
+            </View>
+          )}
+
+          {/* Chat List Area */}
+          <View style={styles.chatArea}>
+            <FlatList
+              data={messages || []}
+              keyExtractor={item => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onLongPress={() => handleCommentLongPress(item)}
+                  delayLongPress={300}
+                >
+                  <View style={styles.chatBubble}>
+                    <Text style={styles.chatUser}>{item.userName}</Text>
+                    <Text style={styles.chatMsg}>{item.comment || item.message}</Text>
+                  </View>
                 </TouchableOpacity>
-            </View>
-          </KeyboardStickyView>
-
+              )}
+              style={{ maxHeight: 200 }}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
         </View>
 
-        {/* Modal */}
-        <Modal visible={showWaitlistModal} transparent animationType="slide" onRequestClose={() => setShowWaitlistModal(false)}>
-            <View style={styles.modalBg}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Call Requests ({callWaitlist.length})</Text>
-                <FlatList
-                data={callWaitlist}
-                keyExtractor={item => item.userId}
-                renderItem={({ item }) => (
-                    <View style={styles.waitlistItem}>
-                    <View><Text style={styles.waitlistName}>{item.userName}</Text><Text style={styles.waitlistDetail}>{item.callType}</Text></View>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity onPress={() => rejectCall(item)} style={[styles.actionSmallBtn, { backgroundColor: '#FFEBEE' }]}><Icon name="close" color="#D32F2F" size={20} /></TouchableOpacity>
-                        <TouchableOpacity onPress={() => acceptCall(item)} style={[styles.actionSmallBtn, { backgroundColor: '#E8F5E9' }]}><Icon name="check" color="#388E3C" size={20} /></TouchableOpacity>
-                    </View>
-                    </View>
-                )}
-                ListEmptyComponent={<Text style={{textAlign:'center', color:'#999', margin: 20}}>No requests</Text>}
-                />
-                <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowWaitlistModal(false)}><Text style={styles.closeModalText}>Close</Text></TouchableOpacity>
-            </View>
-            </View>
-        </Modal>
-      </ScreenWrapper>
-    </KeyboardProvider>
+        {/* ✅ 2. Standard Bottom Bar (Pushed up by KAV) */}
+        <View style={styles.bottomBar}>
+            <TextInput 
+              style={styles.chatInput} placeholder="Say something..." placeholderTextColor="#DDD"
+              value={chatInput} onChangeText={setChatInput} onSubmitEditing={sendMessage}
+            />
+            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}><Icon name="send" color="#FFF" size={20} /></TouchableOpacity>
+            <TouchableOpacity onPress={toggleMic} style={[styles.controlBtn, !isMicEnabled && styles.btnDisabled]}><Icon name={isMicEnabled ? "mic" : "mic-off"} size={24} color="#FFF" /></TouchableOpacity>
+            <TouchableOpacity onPress={toggleCamera} style={[styles.controlBtn, !isCameraEnabled && styles.btnDisabled]}><Icon name={isCameraEnabled ? "videocam" : "videocam-off"} size={24} color="#FFF" /></TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowWaitlistModal(true)} style={styles.waitlistBtn}>
+              <Icon name="list" size={24} color="#FFF" />
+              {callWaitlist.length > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{callWaitlist.length}</Text></View>}
+            </TouchableOpacity>
+        </View>
+
+      {/* Modal */}
+      <Modal visible={showWaitlistModal} transparent animationType="slide" onRequestClose={() => setShowWaitlistModal(false)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Call Requests ({callWaitlist.length})</Text>
+            <FlatList
+              data={callWaitlist}
+              keyExtractor={item => item.userId}
+              renderItem={({ item }) => (
+                <View style={styles.waitlistItem}>
+                  <View><Text style={styles.waitlistName}>{item.userName}</Text><Text style={styles.waitlistDetail}>{item.callType}</Text></View>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity onPress={() => rejectCall(item)} style={[styles.actionSmallBtn, { backgroundColor: '#FFEBEE' }]}><Icon name="close" color="#D32F2F" size={20} /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => acceptCall(item)} style={[styles.actionSmallBtn, { backgroundColor: '#E8F5E9' }]}><Icon name="check" color="#388E3C" size={20} /></TouchableOpacity>
+                  </View>
+                </View>
+              )}
+              ListEmptyComponent={<Text style={{textAlign:'center', color:'#999', margin: 20}}>No requests</Text>}
+            />
+            <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowWaitlistModal(false)}><Text style={styles.closeModalText}>Close</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </ScreenWrapper>
   );
 }

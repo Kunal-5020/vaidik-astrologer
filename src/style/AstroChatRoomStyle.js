@@ -129,7 +129,7 @@ export const styles = StyleSheet.create({
     alignItems: 'flex-end', 
     paddingHorizontal: 12, 
     paddingTop: 10, 
-    paddingBottom: Platform.OS === 'ios' ? 10 : 12, 
+    paddingBottom: 10, 
     backgroundColor: '#FFF'
   },
   input: { 

@@ -25,6 +25,7 @@ import AgoraEngine from '../../services/agora/engine';
 import { STORAGE_KEYS } from '../../config/constants';
 import { useSession } from '../../contexts/SessionContext';
 import { styles, COLORS } from '../../style/CallStyle';
+import notifee from '@notifee/react-native';
 
 const CallScreen = ({ route, navigation }) => {
   const { sessionId, userName = 'User', userImage, callType = 'audio', ratePerMinute = 10 } = route.params || {};
@@ -48,6 +49,35 @@ const CallScreen = ({ route, navigation }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const hasEndedRef = useRef(false);
   const { startSession, endSession } = useSession();
+
+  const startCallForegroundService = async () => {
+  await notifee.displayNotification({
+    id: 'astro_ongoing_call',
+    title: 'Active Consultation',
+    body: `You are currently on a call with ${userName || 'User'}`,
+    android: {
+      channelId: 'astrologer_alert_v1',
+      asForegroundService: true, // Required for Google compliance
+      ongoing: true,
+      color: '#FFC107',
+      pressAction: { id: 'default', launchActivity: 'default' },
+    },
+  });
+};
+
+const stopCallForegroundService = async () => {
+  await notifee.stopForegroundService();
+};
+
+// Trigger based on connection
+useEffect(() => {
+  if (isConnected) {
+    startCallForegroundService();
+  }
+  return () => {
+    stopCallForegroundService();
+  };
+}, [isConnected]);
 
   useEffect(() => {
     startSession('call', route.params);

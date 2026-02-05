@@ -79,6 +79,12 @@ const ChatService = {
     });
     return res.data.data; // { messages, pagination }
   },
+
+  async getTimerStatus(sessionId) {
+    const url = `/chat/sessions/${sessionId}/timer-status`;
+    const res = await apiClient.get(url);
+    return res.data; // Should return { success: true, data: { status, remainingSeconds... } }
+  },
 };
 
 export default ChatService;

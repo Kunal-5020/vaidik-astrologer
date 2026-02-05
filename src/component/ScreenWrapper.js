@@ -1,12 +1,13 @@
 // src/component/ScreenWrapper.js
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   StatusBar, 
   StyleSheet, 
   Platform, 
-  KeyboardAvoidingView, 
-  ScrollView 
+  Keyboard, 
+  Animated,
+  Dimensions
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,111 +15,129 @@ const ScreenWrapper = ({
   children,
   style,
   contentContainerStyle,
-  backgroundColor = '#fff', // Main background color
-  statusBarColor = 'transparent', // Default to transparent for immersive feel
-  barStyle = 'dark-content', // 'dark-content' or 'light-content'
-  translucent = true, // Default to true for modern look
-  scroll = false, // Toggle scroll view
-  avoidKeyboard = false, // Toggle keyboard avoidance
+  backgroundColor = '#fff',
+  statusBarColor = 'transparent',
+  barStyle = 'dark-content',
+  translucent = true,
+  scroll = false,
+  avoidKeyboard = false,
   keyboardVerticalOffset = 0,
-  // Edge protection props
   safeAreaTop = true,
   safeAreaBottom = true,
   safeAreaLeft = true,
   safeAreaRight = true,
 }) => {
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useRef(new Animated.Value(0)).current;
+  
+  // Track if the system (Android adjustResize) is already moving the layout
+  const [isSystemResizing, setIsSystemResizing] = useState(false);
+  const initialHeight = useRef(0);
 
-  // Unified padding calculation
-  const containerStyle = {
-    flex: 1,
-    backgroundColor,
-    paddingTop: safeAreaTop ? insets.top : 0,
-    paddingBottom: safeAreaBottom ? insets.bottom : 0,
-    paddingLeft: safeAreaLeft ? insets.left : 0,
-    paddingRight: safeAreaRight ? insets.right : 0,
+  useEffect(() => {
+    if (!avoidKeyboard) {
+      keyboardHeight.setValue(0);
+      return;
+    }
+
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(showEvent, (e) => {
+      // If system is already resizing (detected via onLayout), we stay at 0
+      if (isSystemResizing) {
+        keyboardHeight.setValue(0);
+        return;
+      }
+
+      const extraOffset = 20; 
+      Animated.timing(keyboardHeight, {
+        duration: e.duration || 250,
+        toValue: e.endCoordinates.height + extraOffset,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    const hideSubscription = Keyboard.addListener(hideEvent, (e) => {
+      Animated.timing(keyboardHeight, {
+        duration: e.duration || 250,
+        toValue: 0,
+        useNativeDriver: false,
+      }).start();
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, [avoidKeyboard, isSystemResizing]);
+
+  // ✅ The "Magic" fix for old phones: Detect if the layout physically shrunk
+  const handleLayout = (event) => {
+    const { height } = event.nativeEvent.layout;
+    
+    if (initialHeight.current === 0) {
+      initialHeight.current = height;
+      return;
+    }
+
+    // If the view height dropped significantly while keyboard is active, 
+    // it means the Android System is handling the resize itself.
+    if (Platform.OS === 'android' && height < initialHeight.current - 100) {
+      setIsSystemResizing(true);
+    } else if (height >= initialHeight.current) {
+      setIsSystemResizing(false);
+    }
   };
 
-  // Wrapper Selection: View vs ScrollView
   const ContainerComponent = scroll ? ScrollView : View;
-  
-  // Props specific to ScrollView
   const scrollProps = scroll ? {
     showsVerticalScrollIndicator: false,
     contentContainerStyle: [styles.scrollContent, contentContainerStyle],
     keyboardShouldPersistTaps: 'handled'
   } : {};
 
-  // Core Content Render
-  const Content = (
-    <ContainerComponent 
-      style={[styles.container, style]} 
-      {...scrollProps}
+  return (
+    <View 
+      style={[styles.outerWrapper, { backgroundColor }]} 
+      onLayout={handleLayout} // ✅ Listens for system resizes
     >
       <StatusBar
         backgroundColor={statusBarColor}
         barStyle={barStyle}
         translucent={translucent}
       />
-      {children}
-    </ContainerComponent>
-  );
-
-  // Return with or without KeyboardAvoidingView
-  if (avoidKeyboard) {
-    return (
-      <View style={[styles.outerWrapper, { backgroundColor }]}>
-        <KeyboardAvoidingView
-          style={[styles.outerWrapper, { 
-            // Apply safe area padding to the outer wrapper to prevent keyboard jumping over headers
+      <Animated.View 
+        style={[
+          styles.outerWrapper, 
+          { 
+            // Apply margin only if the system didn't already move the view
+            marginBottom: avoidKeyboard ? keyboardHeight : 0, 
             paddingTop: safeAreaTop ? insets.top : 0,
-            paddingBottom: safeAreaBottom ? insets.bottom : 0 
-          }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={keyboardVerticalOffset}
-        >
-          {/* Reset padding for inner content since we applied it to the wrapper 
-             This prevents double padding when using KeyboardAvoidingView
-          */}
-          <View style={{ flex: 1, paddingBottom: 0, paddingTop: 0 }}>
-             {/* If using KeyboardAvoidingView, we often want the ScrollView to take available space
-               Re-rendering content logic slightly for this case
-             */}
-              <ContainerComponent 
-                style={[styles.container, style]} 
-                {...scrollProps}
-              >
-                <StatusBar
-                  backgroundColor={statusBarColor}
-                  barStyle={barStyle}
-                  translucent={translucent}
-                />
-                {children}
-              </ContainerComponent>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    );
-  }
-
-  // Standard Render
-  return (
-    <View style={[styles.outerWrapper, containerStyle]}>
-       {Content}
+            paddingLeft: safeAreaLeft ? insets.left : 0,
+            paddingRight: safeAreaRight ? insets.right : 0,
+            // Handle bottom inset: Remove it when keyboard is up to prevent double gap
+            paddingBottom: (safeAreaBottom && !isSystemResizing) ? 
+              keyboardHeight.interpolate({
+                inputRange: [0, 1],
+                outputRange: [insets.bottom, 0],
+                extrapolate: 'clamp'
+              }) : 0 
+          }
+        ]}
+      >
+        <ContainerComponent style={[styles.container, style]} {...scrollProps}>
+          {children}
+        </ContainerComponent>
+      </Animated.View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  outerWrapper: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  outerWrapper: { flex: 1 },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
 });
 
 export default ScreenWrapper;

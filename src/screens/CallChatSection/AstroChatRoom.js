@@ -16,11 +16,6 @@ import {
   AppState,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-// ✅ Import from react-native-keyboard-controller
-import { 
-  KeyboardStickyView, 
-  KeyboardProvider 
-} from 'react-native-keyboard-controller';
 
 import { useAuth } from '../../contexts/AuthContext';
 import AstrologerChatSocket from '../../services/socket/AstrologerChatSocket';
@@ -430,124 +425,115 @@ const AstroChatRoom = ({ route, navigation }) => {
   }
 
   return (
-    // ✅ 1. Wrap with KeyboardProvider (best at root, but fine here)
-    <KeyboardProvider statusBarTranslucent> 
-      <ScreenWrapper backgroundColor="#ffffff" barStyle="dark-content">
-        {/* 2. HEADER */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#FFF" />
-            </TouchableOpacity>
-            <View style={styles.avatarContainer}>
-              <Image source={{ uri: userData?.profilePicture || 'https://via.placeholder.com/40' }} style={styles.avatar} />
-              {isActive && <View style={styles.onlineDot} />}
-            </View>
-            <View style={styles.headerInfo}>
-              <Text style={styles.headerTitle} numberOfLines={1}>{userData?.name || 'User'}</Text>
-              <Text style={styles.headerSubtitle}>{!isActive ? (sessionStatus === 'waiting' ? 'Waiting...' : 'Ended') : 'Online'}</Text>
-            </View>
-          </View> 
-
-          <View style={styles.headerActions}>
-            {isActive && (
-              <>
-                <View style={[styles.timerPill, secondsLeft < 60 && styles.timerPillWarning]}>
-                  <Ionicons name="time-outline" size={14} color={secondsLeft < 60 ? COLORS.DANGER : COLORS.ACCENT} style={{ marginRight: 4 }} />
-                  <Text style={[styles.timerTxt, secondsLeft < 60 && styles.timerTxtWarning]}>{formatTime(secondsLeft)}</Text>
-                </View>
-                <TouchableOpacity style={styles.suggestBtn} onPress={handleSuggestRemedies}>
-                  <Ionicons name="bulb" size={16} color="#FFF" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.endBtn} onPress={endChat}>
-                  <Text style={styles.endBtnText}>End</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            <TouchableOpacity style={styles.menuBtn} onPress={handleOptionsPress}>
-                <Ionicons name="ellipsis-vertical" size={20} color="#FFF" />
-            </TouchableOpacity>
+    <ScreenWrapper 
+      backgroundColor="#ffffff" 
+      barStyle="dark-content"
+      avoidKeyboard={true} // ✅ Use the wrapper's built-in avoidance
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0} // Start at 0, adjust if header overlaps
+    >
+      {/* 2. HEADER */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: userData?.profilePicture || 'https://via.placeholder.com/40' }} style={styles.avatar} />
+            {isActive && <View style={styles.onlineDot} />}
           </View>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle} numberOfLines={1}>{userData?.name || 'User'}</Text>
+            <Text style={styles.headerSubtitle}>{!isActive ? (sessionStatus === 'waiting' ? 'Waiting...' : 'Ended') : 'Online'}</Text>
+          </View>
+        </View> 
+
+        <View style={styles.headerActions}>
+          {isActive && (
+            <>
+              <View style={[styles.timerPill, secondsLeft < 60 && styles.timerPillWarning]}>
+                <Ionicons name="time-outline" size={14} color={secondsLeft < 60 ? COLORS.DANGER : COLORS.ACCENT} style={{ marginRight: 4 }} />
+                <Text style={[styles.timerTxt, secondsLeft < 60 && styles.timerTxtWarning]}>{formatTime(secondsLeft)}</Text>
+              </View>
+              <TouchableOpacity style={styles.suggestBtn} onPress={handleSuggestRemedies}>
+                <Ionicons name="bulb" size={16} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.endBtn} onPress={endChat}>
+                <Text style={styles.endBtnText}>End</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          <TouchableOpacity style={styles.menuBtn} onPress={handleOptionsPress}>
+              <Ionicons name="ellipsis-vertical" size={20} color="#FFF" />
+          </TouchableOpacity>
         </View>
+      </View>
 
-        {/* 3. KUNDLI HEADER */}
-        {userData?.kundli && (
-          <View>
-            <TouchableOpacity activeOpacity={0.9} onPress={() => setShowKundli(!showKundli)} style={styles.kundliHeader}>
-              <View style={styles.kundliHeaderLeft}>
-                <Ionicons name="document-text" size={20} color={COLORS.PRIMARY} />
-                <Text style={styles.kundliHeaderText}>User Kundli Details</Text>
-              </View>
-              <Ionicons name={showKundli ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.PRIMARY} />
-            </TouchableOpacity>
-            {showKundli && (
-              <View style={styles.kundliInfoCard}>
-                {userData.kundli.name && <View style={styles.kundliInfoRow}><Ionicons name="person" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Name:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.name}</Text></View>}
-                {userData.kundli.gender && <View style={styles.kundliInfoRow}><Ionicons name={userData.kundli.gender === 'Male' ? 'male' : 'female'} size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Gender:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.gender}</Text></View>}
-                {userData.kundli.dateOfBirth && <View style={styles.kundliInfoRow}><Ionicons name="calendar" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Date of Birth:</Text><Text style={styles.kundliInfoValue}>{new Date(userData.kundli.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</Text></View>}
-                {userData.kundli.timeOfBirth && <View style={styles.kundliInfoRow}><Ionicons name="time" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Time of Birth:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.timeOfBirth}</Text></View>}
-                {userData.kundli.placeOfBirth && <View style={styles.kundliInfoRow}><Ionicons name="location" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Place of Birth:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.placeOfBirth}</Text></View>}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* 4. CHAT & INPUT AREA */}
-        <View style={{ flex: 1 }}>
-          <ImageBackground 
-              source={require('../../assets/onlyLogoVaidik.png')} 
-              style={styles.chatBackground} 
-              imageStyle={{ opacity: 0.05, resizeMode: 'center' }} 
-              resizeMode="cover"
-          >
-            {/* ✅ FlatList takes remaining space (flex: 1).
-               When keyboard opens, this view shrinks, allowing list to scroll.
-            */}
-            <FlatList
-              ref={flatListRef}
-              data={groupedData}
-              renderItem={renderItem}
-              keyExtractor={(item) => String(item._id)}
-              inverted={true}
-              onEndReached={loadMoreMessages}
-              onEndReachedThreshold={0.3}
-              ListFooterComponent={isFetchingMore ? <ActivityIndicator size="small" color={COLORS.PRIMARY} style={{ marginVertical: 10 }} /> : null}
-              // ✅ Padding bottom ensures last message isn't hidden behind input
-              contentContainerStyle={[styles.listContent, { paddingBottom: 10 }]} 
-              showsVerticalScrollIndicator={false}
-            />
-          </ImageBackground>
-
-          {/* ✅ KeyboardStickyView sticks to keyboard top. 
-             offset accounts for potential bottom tabs/safe area
-          */}
-          {isActive || sessionStatus === 'waiting' ? (
-            <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
-              <View style={{backgroundColor: '#fff'}}>
-                {sessionStatus === 'waiting' && <Text style={styles.waitingText}>Waiting for user to join...</Text>}
-                <View style={[styles.inputContainer, sessionStatus === 'waiting' && { opacity: 0.5 }]}>
-                  <TextInput
-                    style={styles.input}
-                    value={input}
-                    onChangeText={setInput}
-                    placeholder="Type a message..."
-                    placeholderTextColor={COLORS.TEXT_LIGHT}
-                    multiline
-                    maxLength={1000}
-                    editable={isActive}
-                  />
-                  <TouchableOpacity onPress={sendMessage} disabled={!isActive || !input.trim()} style={[styles.sendButton, (!isActive || !input.trim()) && styles.sendButtonDisabled]}>
-                    <Ionicons name="send" size={20} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardStickyView>
-          ) : (
-            <View style={styles.footerBanner}><Text style={{ color: '#fff' }}>Chat ended</Text></View>
+      {/* 3. KUNDLI HEADER */}
+      {userData?.kundli && (
+        <View>
+          <TouchableOpacity activeOpacity={0.9} onPress={() => setShowKundli(!showKundli)} style={styles.kundliHeader}>
+            <View style={styles.kundliHeaderLeft}>
+              <Ionicons name="document-text" size={20} color={COLORS.PRIMARY} />
+              <Text style={styles.kundliHeaderText}>User Kundli Details</Text>
+            </View>
+            <Ionicons name={showKundli ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.PRIMARY} />
+          </TouchableOpacity>
+          {showKundli && (
+            <View style={styles.kundliInfoCard}>
+              {userData.kundli.name && <View style={styles.kundliInfoRow}><Ionicons name="person" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Name:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.name}</Text></View>}
+              {userData.kundli.gender && <View style={styles.kundliInfoRow}><Ionicons name={userData.kundli.gender === 'Male' ? 'male' : 'female'} size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Gender:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.gender}</Text></View>}
+              {userData.kundli.dateOfBirth && <View style={styles.kundliInfoRow}><Ionicons name="calendar" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Date of Birth:</Text><Text style={styles.kundliInfoValue}>{new Date(userData.kundli.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</Text></View>}
+              {userData.kundli.timeOfBirth && <View style={styles.kundliInfoRow}><Ionicons name="time" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Time of Birth:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.timeOfBirth}</Text></View>}
+              {userData.kundli.placeOfBirth && <View style={styles.kundliInfoRow}><Ionicons name="location" size={18} color={COLORS.PRIMARY}/><Text style={styles.kundliInfoLabel}>Place of Birth:</Text><Text style={styles.kundliInfoValue}>{userData.kundli.placeOfBirth}</Text></View>}
+            </View>
           )}
         </View>
-      </ScreenWrapper>
-    </KeyboardProvider>
+      )}
+
+        <ImageBackground 
+            source={require('../../assets/onlyLogoVaidik.png')} 
+            style={styles.chatBackground} 
+            imageStyle={{ opacity: 0.05, resizeMode: 'center' }} 
+            resizeMode="cover"
+        >
+          <FlatList
+            ref={flatListRef}
+            data={groupedData}
+            renderItem={renderItem}
+            keyExtractor={(item) => String(item._id)}
+            inverted={true}
+            onEndReached={loadMoreMessages}
+            onEndReachedThreshold={0.3}
+            ListFooterComponent={isFetchingMore ? <ActivityIndicator size="small" color={COLORS.PRIMARY} style={{ marginVertical: 10 }} /> : null}
+            contentContainerStyle={[styles.listContent, { paddingBottom: 10 }]} 
+            showsVerticalScrollIndicator={false}
+          />
+        </ImageBackground>
+
+        {/* ✅ Standard View for Input (KeyboardAvoidingView pushes this up) */}
+        {isActive || sessionStatus === 'waiting' ? (
+          <View style={{backgroundColor: '#fff'}}>
+            {sessionStatus === 'waiting' && <Text style={styles.waitingText}>Waiting for user to join...</Text>}
+            <View style={[styles.inputContainer, sessionStatus === 'waiting' && { opacity: 0.5 }]}>
+              <TextInput
+                style={styles.input}
+                value={input}
+                onChangeText={setInput}
+                placeholder="Type a message..."
+                placeholderTextColor={COLORS.TEXT_LIGHT}
+                multiline
+                maxLength={1000}
+                editable={isActive}
+              />
+              <TouchableOpacity onPress={sendMessage} disabled={!isActive || !input.trim()} style={[styles.sendButton, (!isActive || !input.trim()) && styles.sendButtonDisabled]}>
+                <Ionicons name="send" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.footerBanner}><Text style={{ color: '#fff' }}>Chat ended</Text></View>
+        )}
+    </ScreenWrapper>
   );
 };
 

@@ -25,6 +25,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
 
     <!-- For Android 12+ -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
@@ -41,9 +42,15 @@
       android:usesCleartextTraffic="true"
       android:supportsRtl="true">
 
+      <service
+        android:name="app.notifee.core.ForegroundService"
+        android:foregroundServiceType="microphone|camera"
+        tools:replace="android:foregroundServiceType"
+        android:exported="false" />
+
       <service 
         android:name="io.agora.rtc.ss.impl.LocalScreenSharingService"
-        android:foregroundServiceType="mediaProjection|camera|microphone"
+        android:foregroundServiceType="camera|microphone"
         android:exported="false" />
 
       <!-- ✅ Main Activity -->

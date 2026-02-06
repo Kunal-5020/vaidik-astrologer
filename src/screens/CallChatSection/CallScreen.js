@@ -50,6 +50,8 @@ const CallScreen = ({ route, navigation }) => {
   const hasEndedRef = useRef(false);
   const { startSession, endSession } = useSession();
 
+  const isConnected = !isWaitingForUser;
+
   useEffect(() => {
     const handleForegroundService = async () => {
       if (isConnected) {

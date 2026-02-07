@@ -65,7 +65,7 @@ export default function LiveStreamScreen() {
   // Call State
   const [currentCall, setCurrentCall] = useState(null);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
-  const [callTimer, setCallTimer] = useState(0); // This will now count DOWN
+  const [callTimer, setCallTimer] = useState(0); 
   const [isCallTimerActive, setIsCallTimerActive] = useState(false);
 
   const [showControls, setShowControls] = useState(true);
@@ -115,65 +115,64 @@ export default function LiveStreamScreen() {
     };
   }, [userId]); 
 
-  // ✅ FIX: Timer Logic (Counts Down)
+  // ✅ Timer Logic
   useEffect(() => {
-  let interval;
-  if (isCallTimerActive && callEndTime) {
-    interval = setInterval(() => {
-      const now = Date.now();
-      const remaining = Math.max(0, Math.floor((callEndTime - now) / 1000));
-      
-      setCallTimer(remaining);
-
-      if (remaining <= 0) {
-        clearInterval(interval);
-        console.log("⏰ Timer expired. Ending call.");
-        endCurrentCall();
-      }
-    }, 500); // Check twice a second for accuracy
-  }
-  return () => clearInterval(interval);
-}, [isCallTimerActive, callEndTime]);
-
-const startStreamForegroundService = async () => {
-  try {
-    // Create channel (Required for Android O+)
-    await notifee.createChannel({
-      id: 'astrologer_alert_v1',
-      name: 'Live Stream Alerts',
-      importance: AndroidImportance.HIGH,
-    });
-
-    await notifee.displayNotification({
-      id: 'astro_live_stream',
-      title: 'You are Live',
-      body: 'Camera and Microphone are active',
-      android: {
-        channelId: 'astrologer_alert_v1',
+    let interval;
+    if (isCallTimerActive && callEndTime) {
+        interval = setInterval(() => {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.floor((callEndTime - now) / 1000));
         
-        // 1. THIS MAKES IT PERSISTENT (Prevents swipe-to-dismiss)
-        ongoing: true, 
-        
-        // 2. THIS LINKS IT TO THE SERVICE REGISTERED IN INDEX.JS
-        asForegroundService: true, 
-        
-        // 3. Service Types (Use Integers to avoid import errors: 64=Camera, 128=Mic)
-        foregroundServiceTypes: [64, 128], 
+        setCallTimer(remaining);
 
-        color: '#FFC107',
-        smallIcon: 'ic_launcher', 
-        
-        // 4. ACTION WHEN TAPPED (Brings app to front)
-        pressAction: { 
-          id: 'default', 
-          launchActivity: 'default' 
-        },
-      },
-    });
-  } catch (err) {
-    console.error("Foreground Service Error:", err);
-  }
-};
+        if (remaining <= 0) {
+            clearInterval(interval);
+            console.log("⏰ Timer expired. Ending call.");
+            endCurrentCall();
+        }
+        }, 500); 
+    }
+    return () => clearInterval(interval);
+  }, [isCallTimerActive, callEndTime]);
+
+  // ✅ FOREGROUND SERVICE LOGIC (FIXED PERSISTENCE)
+  const startStreamForegroundService = async () => {
+    try {
+        await notifee.createChannel({
+            id: 'astrologer_alert_v1',
+            name: 'Live Stream Alerts',
+            importance: AndroidImportance.HIGH,
+            visibility: 1,
+            sound: 'default',
+            vibration: false,
+        });
+
+        await notifee.displayNotification({
+            id: 'astro_live_stream',
+            title: 'You are Live',
+            body: 'Camera and Microphone are active',
+            android: {
+                channelId: 'astrologer_alert_v1',
+                asForegroundService: true, // Ties to process
+                ongoing: true, // Prevents swipe dismissal
+                autoCancel: false, // ✅ CRITICAL: Prevents tap dismissal
+                
+                // 128 = MICROPHONE, 64 = CAMERA
+                foregroundServiceTypes: [64, 128], 
+
+                color: '#FFC107',
+                smallIcon: 'ic_launcher', 
+                
+                pressAction: { 
+                    id: 'default', 
+                    launchActivity: 'default' 
+                },
+            },
+        });
+    } catch (err) {
+        console.error("Foreground Service Error:", err);
+    }
+  };
 
   const stopStreamForegroundService = async () => {
     try {
@@ -188,11 +187,10 @@ const startStreamForegroundService = async () => {
     let isMounted = true;
 
     const init = async () => {
-      // 1. Initialize Agora first (Video/Audio hardware access)
       await initializeAgora();
       await connectSocket();
       
-      // 2. Start Notification ONLY after Agora is ready
+      // Start Notification ONLY after Agora is ready
       if (isMounted) {
         await startStreamForegroundService();
       }
@@ -298,7 +296,6 @@ const startStreamForegroundService = async () => {
         setCurrentCall(prevCall => {
             if (prevCall && prevCall.userId === data.userId) {
                 Alert.alert('Call Cancelled', 'User cancelled.');
-                // Mute remote audio just in case
                 if(prevCall.callerAgoraUid && engineRef.current) {
                    engineRef.current.muteRemoteAudioStream(prevCall.callerAgoraUid, true);
                 }
@@ -312,7 +309,6 @@ const startStreamForegroundService = async () => {
 
       streamSocketService.socket.on('user_ended_call', () => {
         Alert.alert('Call Ended', 'User disconnected.');
-        // Mute remote audio immediately
         if (currentCall?.callerAgoraUid && engineRef.current) {
              engineRef.current.muteRemoteAudioStream(currentCall.callerAgoraUid, true);
         }
@@ -388,7 +384,6 @@ const startStreamForegroundService = async () => {
         
         setCallWaitlist(prev => prev.filter(r => r.userId !== request.userId));
         
-        // ✅ FIX: Use maxDuration from backend
         const maxDuration = callData.maxDuration || 600;
         const calculatedEndTime = Date.now() + (maxDuration * 1000);
         setCallEndTime(calculatedEndTime);
@@ -403,7 +398,6 @@ const startStreamForegroundService = async () => {
           startedAt: new Date(),
         });
         
-        // Notify user with socket
         streamSocketService.socket.emit('call_accepted', {
           streamId,
           userId: request.userId,
@@ -414,10 +408,9 @@ const startStreamForegroundService = async () => {
           channelName: callData.channelName, 
           callerAgoraUid: callData.callerAgoraUid, 
           hostAgoraUid: callData.hostAgoraUid,
-          maxDuration: maxDuration // Pass duration to user
+          maxDuration: maxDuration 
         });
         
-        // ✅ FIX: Start Timer counting DOWN
         setCallTimer(maxDuration);
         setIsCallTimerActive(true);
         setShowWaitlistModal(false);
@@ -441,8 +434,6 @@ const startStreamForegroundService = async () => {
   const endCurrentCall = async () => {
     if (!currentCall) return;
 
-    // ✅ FIX: Immediately Mute Remote Audio
-    // This prevents the "voice still going" issue if the user stays in channel
     if (currentCall.callerAgoraUid && engineRef.current) {
         engineRef.current.muteRemoteAudioStream(currentCall.callerAgoraUid, true);
     }
@@ -450,11 +441,7 @@ const startStreamForegroundService = async () => {
     try {
       const response = await livestreamService.endCurrentCall(streamId);
       const charge = response.data?.charge || 0;
-      
-      // ✅ NOTE: Backend now handles 'call_ended' emit, so we don't duplicate it here.
-      // But we can show the alert.
       Alert.alert('Call Ended', `Duration: ${Math.floor((callTimer)/60)}m left\nEarned: ₹${charge}`);
-    
     } catch (error) {
       console.error('End Call Error', error);
     } finally {
@@ -497,8 +484,6 @@ const startStreamForegroundService = async () => {
              try {
                 await astrologerService.blockUser(comment.userId);
                 Alert.alert("Blocked", "User blocked successfully.");
-                
-                // Optional: Remove their messages from local state immediately
                 setMessages(prev => prev.filter(m => m.userId !== comment.userId));
              } catch (error) {
                 Alert.alert("Error", "Could not block user.");
@@ -620,7 +605,7 @@ return (
           </View>
         </View>
 
-        {/* ✅ 2. Standard Bottom Bar (Pushed up by KAV) */}
+        {/* 2. Standard Bottom Bar (Pushed up by KAV) */}
         <View style={styles.bottomBar}>
             <TextInput 
               style={styles.chatInput} placeholder="Say something..." placeholderTextColor="#DDD"

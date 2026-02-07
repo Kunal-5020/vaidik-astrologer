@@ -9,7 +9,8 @@ import {
   BackHandler,
   Animated,
   Image,
-  ActivityIndicator
+  ActivityIndicator,
+  StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,7 +26,7 @@ import AgoraEngine from '../../services/agora/engine';
 import { STORAGE_KEYS } from '../../config/constants';
 import { useSession } from '../../contexts/SessionContext';
 import { styles, COLORS } from '../../style/CallStyle';
-import notifee, { AndroidImportance, AndroidForegroundServiceType } from '@notifee/react-native';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 
 const CallScreen = ({ route, navigation }) => {
   const { sessionId, userName = 'User', userImage, callType = 'audio', ratePerMinute = 10 } = route.params || {};
@@ -50,48 +51,52 @@ const CallScreen = ({ route, navigation }) => {
   const hasEndedRef = useRef(false);
   const { startSession, endSession } = useSession();
 
-  const isConnected = !isWaitingForUser;
-
+  // --- FOREGROUND SERVICE FIX (PERSISTENT START) ---
   useEffect(() => {
-    const handleForegroundService = async () => {
-      if (isConnected) {
+    const startForegroundService = async () => {
+      try {
         // 1. Create Channel
         await notifee.createChannel({
           id: 'astrologer_call_service',
           name: 'Active Call Service',
           importance: AndroidImportance.HIGH,
+          visibility: 1,
+          sound: 'default',
+          vibration: false,
         });
 
-        // 2. Start Service
+        // 2. Service Types (128=Mic, 64=Camera)
+        // Hardcoded integers avoid import errors and ensure Android 14 compliance
+        const serviceTypes = [128];
+        if (callType === 'video') serviceTypes.push(64);
+
+        // 3. Display Persistent Notification IMMEDIATELY
         await notifee.displayNotification({
           id: 'astro_active_call',
           title: 'Ongoing Consultation',
           body: 'Tap to return to call',
           android: {
             channelId: 'astrologer_call_service',
-            asForegroundService: true,
-            // Types must match Manifest
-            foregroundServiceTypes: [
-              AndroidForegroundServiceType.MICROPHONE,
-              ...(isVideoCall ? [AndroidForegroundServiceType.CAMERA] : [])
-            ],
-            ongoing: true,
+            asForegroundService: true, // Ties notification to the app process
+            ongoing: true, // Prevents user from swiping it away
             color: '#4CAF50',
             smallIcon: 'ic_launcher',
+            foregroundServiceTypes: serviceTypes,
             pressAction: { id: 'default', launchActivity: 'default' },
           },
         });
-      } else {
-        await notifee.stopForegroundService();
+      } catch (e) {
+        console.error("Foreground service error:", e);
       }
     };
 
-    handleForegroundService();
+    // Run immediately on mount (do NOT wait for 'isConnected')
+    startForegroundService();
 
     return () => {
       notifee.stopForegroundService();
     };
-  }, [isConnected]);
+  }, [callType]); 
 
   // --- SOCKET SETUP ---
 
@@ -137,7 +142,6 @@ const CallScreen = ({ route, navigation }) => {
         setRemainingTime(remainingTimeRef.current);
       } else {
         clearInterval(timerIntervalRef.current);
-        // Backend usually handles the actual cut-off
       }
     }, 1000);
   };
@@ -243,7 +247,6 @@ const CallScreen = ({ route, navigation }) => {
         callType === 'video'
       );
 
-      // Set initial speaker state
       if (callType === 'video') {
            AgoraEngine.setSpeaker(true);
            setSpeakerOn(true);
@@ -307,14 +310,14 @@ const CallScreen = ({ route, navigation }) => {
 
   const getImageSource = (img) => {
     if (typeof img === 'string' && img.trim().length > 0) return { uri: img.trim() };
-    return require('../../assets/man.png'); // Default avatar
+    return require('../../assets/man.png'); 
   };
 
   // --- RENDERERS ---
 
   const renderAudioCall = () => (
     <LinearGradient colors={[COLORS.BG, COLORS.BG_GRADIENT, COLORS.BG]} style={styles.audioContainer}>
-        {/* Reusing the same fixed top overlay structure as Video for consistency */}
+        {/* Fixed Top Overlay for Audio */}
         <SafeAreaView style={styles.topOverlayFixed}>
           <View style={styles.topHeaderContent}>
             <View style={styles.timerPill}>
@@ -347,12 +350,11 @@ const CallScreen = ({ route, navigation }) => {
     
     return (
       <View style={styles.fullScreen}>
-        {/* --- MAIN FULL SCREEN VIEW --- */}
-        <View style={styles.fullScreen}>
+        {/* --- MAIN FULL SCREEN VIEW (Video Layer) --- */}
+        <View style={[styles.fullScreen, { zIndex: 0 }]}>
            {showLocalAsMain ? (
-               // Local is Main
                isVideoOn ? (
-                   <RtcSurfaceView style={styles.fullScreen} canvas={{ uid: 0, renderMode: 1 }} />
+                   <RtcSurfaceView key="local-main" style={styles.fullScreen} canvas={{ uid: 0, renderMode: 1 }} />
                ) : (
                    <View style={styles.placeholder}>
                        <Icon name="camera-off" size={60} color="rgba(255,255,255,0.3)" />
@@ -360,9 +362,8 @@ const CallScreen = ({ route, navigation }) => {
                    </View>
                )
            ) : (
-               // Remote is Main
                remoteUid ? (
-                   <RtcSurfaceView style={styles.fullScreen} canvas={{ uid: remoteUid, renderMode: 1 }} />
+                   <RtcSurfaceView key="remote-main" style={styles.fullScreen} canvas={{ uid: remoteUid, renderMode: 1 }} />
                ) : (
                    <LinearGradient colors={[COLORS.BG, COLORS.BG_GRADIENT]} style={styles.placeholder}>
                        <View style={styles.loadingRing}>
@@ -374,38 +375,62 @@ const CallScreen = ({ route, navigation }) => {
            )}
         </View>
 
-        {/* --- PROFESSIONAL TOP OVERLAY --- */}
+        {/* --- TOP OVERLAY (UI Layer) --- */}
+        {/* ✅ FIXED: Added absolute position, top:0, width:100%, and elevation:100 to appear over video */}
         <LinearGradient 
-           colors={['rgba(0,0,0,0.7)', 'transparent']} 
-           style={styles.topOverlay}
+           colors={['rgba(0,0,0,0.8)', 'transparent']} 
+           style={{
+             position: 'absolute',
+             top: 0,
+             left: 0,
+             right: 0,
+             width: '100%',
+             paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 40) : 50,
+             paddingBottom: 30,
+             paddingHorizontal: 20,
+             zIndex: 100,      // iOS Z-index
+             elevation: 100,   // Android Elevation (Crucial for visibility over Video)
+             flexDirection: 'row',
+             justifyContent: 'space-between',
+             alignItems: 'flex-start'
+           }}
            pointerEvents="none" 
         >
-           <SafeAreaView style={styles.topHeaderContent}>
-              <View style={styles.timerPill}>
-                 <Icon name="clock-outline" size={14} color="#FFF" style={{ marginRight: 6 }} />
-                 <Text style={styles.timerText}>{formatTime(remainingTime)}</Text>
-              </View>
+            {/* Timer Pill */}
+            <View style={{
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                backgroundColor: 'rgba(0,0,0,0.6)', 
+                paddingVertical: 6, 
+                paddingHorizontal: 12, 
+                borderRadius: 20, 
+                borderWidth: 1, 
+                borderColor: 'rgba(255,255,255,0.3)'
+            }}>
+                <Icon name="clock-outline" size={14} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 14 }}>{formatTime(remainingTime)}</Text>
+            </View>
 
-              <View style={styles.remoteInfo}>
-                 <Text style={styles.remoteName}>{userName}</Text>
-                 <View style={styles.remoteStatusContainer}>
+            {/* Remote Info */}
+            <View style={styles.remoteInfo}>
+                <Text style={styles.remoteName}>{userName}</Text>
+                <View style={styles.remoteStatusContainer}>
                     <View style={[styles.statusDot, { backgroundColor: !isWaitingForUser ? COLORS.SUCCESS : '#999' }]} />
                     <Text style={styles.remoteStatus}>{!isWaitingForUser ? 'Live' : 'Connecting'}</Text>
-                 </View>
-              </View>
-           </SafeAreaView>
+                </View>
+            </View>
         </LinearGradient>
 
         {/* --- SMALL FLOATING VIEW (Bottom Right) --- */}
         {isEngineReady && (
            <TouchableOpacity 
-               style={styles.smallVideoContainer} 
+               style={[styles.smallVideoContainer, { zIndex: 200, elevation: 200 }]} // ✅ Ensure small view is above all
                onPress={() => setLocalMain(!isLocalMain)}
                activeOpacity={0.9}
            >
                {showLocalAsMain ? (
                    remoteUid ? (
-                       <RtcSurfaceView style={styles.flex1} zOrderMediaOverlay={true} canvas={{ uid: remoteUid, renderMode: 1 }} />
+                       <RtcSurfaceView key="remote-small" style={styles.flex1} zOrderMediaOverlay={true} canvas={{ uid: remoteUid, renderMode: 1 }} />
                    ) : (
                        <View style={[styles.flex1, styles.placeholderSmall]}>
                            <ActivityIndicator size="small" color="#FFF" />
@@ -413,7 +438,7 @@ const CallScreen = ({ route, navigation }) => {
                    )
                ) : (
                    isVideoOn ? (
-                       <RtcSurfaceView style={styles.flex1} zOrderMediaOverlay={true} canvas={{ uid: 0, renderMode: 1 }} />
+                       <RtcSurfaceView key="local-small" style={styles.flex1} zOrderMediaOverlay={true} canvas={{ uid: 0, renderMode: 1 }} />
                    ) : (
                        <View style={[styles.flex1, styles.placeholderSmall]}>
                            <Icon name="account" size={30} color="rgba(255,255,255,0.5)" />
@@ -428,6 +453,7 @@ const CallScreen = ({ route, navigation }) => {
 
   return (
     <ScreenWrapper backgroundColor="#000" barStyle="light-content" translucent={true} safeAreaTop={false} safeAreaBottom={false}>
+      <StatusBar translucent backgroundColor="transparent" />
       <View style={styles.flex1}>
          {callType === 'video' ? renderVideoCall() : renderAudioCall()}
       </View>
@@ -437,12 +463,10 @@ const CallScreen = ({ route, navigation }) => {
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.controlsGradient}>
               <View style={styles.controls}>
                  <TouchableOpacity style={[styles.btn, !isMicOn && styles.btnOff]} onPress={() => { setMicOn(!isMicOn); AgoraEngine.setMic(!isMicOn); }}>
-                    {/* Fixed: Icon color changes to BG when button background is white */}
                     <Icon name={isMicOn ? 'microphone' : 'microphone-off'} size={24} color={isMicOn ? COLORS.ACCENT : COLORS.BG} />
                  </TouchableOpacity>
 
                  <TouchableOpacity style={[styles.btn, !isSpeakerOn && styles.btnOff]} onPress={() => { setSpeakerOn(!isSpeakerOn); AgoraEngine.setSpeaker(!isSpeakerOn); }}>
-                    {/* Fixed: Icon color changes to BG when button background is white */}
                     <Icon name={isSpeakerOn ? 'volume-high' : 'phone-in-talk'} size={24} color={isSpeakerOn ? COLORS.ACCENT : COLORS.BG} />
                  </TouchableOpacity>
 

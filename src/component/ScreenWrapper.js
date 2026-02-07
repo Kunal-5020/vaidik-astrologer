@@ -14,11 +14,11 @@ const ScreenWrapper = ({
   style,
   contentContainerStyle,
   backgroundColor = '#fff',
-  statusBarColor = 'transparent',
+  statusBarColor = '#fff',
   barStyle = 'dark-content',
   translucent = true,
   scroll = false,
-  avoidKeyboard = false, // Set to true for Chat screens
+  avoidKeyboard = false,
   keyboardVerticalOffset = 0,
   safeAreaTop = true,
   safeAreaBottom = true,
@@ -27,7 +27,6 @@ const ScreenWrapper = ({
 }) => {
   const insets = useSafeAreaInsets();
 
-  // Define edges for SafeAreaView based on props
   const edges = [
     safeAreaTop && 'top',
     safeAreaBottom && 'bottom',
@@ -54,23 +53,17 @@ const ScreenWrapper = ({
         translucent={translucent}
       />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ flex: 1 }}
-        // ✅ CRITICAL FIX: 
-        // iOS needs 'padding' to push content up.
-        // Android needs 'undefined' (OFF) because 'adjustResize' in Manifest does it natively.
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        enabled={avoidKeyboard}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardVerticalOffset : 0}
-      >
+      {/* ✅ UNIFIED FIX: 
+         We switched Manifest to 'adjustPan'.
+         Now we MUST use 'behavior="padding"' (or height) on Android too.
+         This forces the layout to shrink on ALL devices, ignoring OS fragmentation.
+      */}
         <ContainerComponent 
           style={[styles.container, style]} 
           {...scrollProps}
         >
           {children}
         </ContainerComponent>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

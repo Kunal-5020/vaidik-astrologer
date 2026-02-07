@@ -26,6 +26,13 @@ export default function HelpSupportScreen({ navigation }) {
     }
   }, [isLoading, state.astrologer]); // Only depend on these
 
+  // ✅ Reload Functionality
+  const handleReload = () => {
+    console.log('🔄 Reloading WebView...');
+    setIsLoading(true);
+    webViewRef.current?.reload();
+  };
+
   const sendAstrologerData = () => {
     const astrologer = state.astrologer;
     
@@ -80,7 +87,7 @@ export default function HelpSupportScreen({ navigation }) {
   };
 
   return (
-    <ScreenWrapper backgroundColor="#ffffff" barStyle="light-content" safeAreaTop={false}>
+    <ScreenWrapper backgroundColor="#ffffff" barStyle="light-content" safeAreaTop={true} avoidKeyboard={true}>
 
       <View style={styles.webViewContainer}>
         <WebView

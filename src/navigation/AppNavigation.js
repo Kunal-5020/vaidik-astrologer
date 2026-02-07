@@ -259,8 +259,7 @@ const AppNavigation = () => {
         name="HelpSupport" 
         component={HelpSupportScreen}
         options={{ 
-          headerShown: true, 
-          title: 'Help & Support',
+          headerShown: false, 
           ...purpleHeaderOptions 
         }}
       />

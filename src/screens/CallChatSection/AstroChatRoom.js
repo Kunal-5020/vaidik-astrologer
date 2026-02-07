@@ -429,7 +429,7 @@ const AstroChatRoom = ({ route, navigation }) => {
       backgroundColor="#ffffff" 
       barStyle="dark-content"
       avoidKeyboard={true} // ✅ Use the wrapper's built-in avoidance
-      safeAreaBottom={false}
+      safeAreaBottom={true}
     >
       {/* 2. HEADER */}
       <View style={styles.header}>

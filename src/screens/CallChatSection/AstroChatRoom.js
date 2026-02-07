@@ -429,7 +429,7 @@ const AstroChatRoom = ({ route, navigation }) => {
       backgroundColor="#ffffff" 
       barStyle="dark-content"
       avoidKeyboard={true} // ✅ Use the wrapper's built-in avoidance
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0} // Start at 0, adjust if header overlaps
+      safeAreaBottom={false}
     >
       {/* 2. HEADER */}
       <View style={styles.header}>

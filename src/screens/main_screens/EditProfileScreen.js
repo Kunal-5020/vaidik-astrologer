@@ -19,7 +19,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import ProfileImageModal from '../../component/ProfileImageModal';
 import {
   requestCameraPermission,
-  requestGalleryPermission,
 } from '../../component/AppPermission';
 
 // Services & Context
@@ -111,18 +110,20 @@ const EditProfileScreen = ({ navigation }) => {
   }, [showToast]);
 
   const openGallery = useCallback(async () => {
-    const hasPermission = await requestGalleryPermission();
-    if (!hasPermission) {
-      showToast('Gallery denied', 'error');
-      return;
-    }
+    // ✅ REMOVED: const hasPermission = await requestGalleryPermission();
+    // ✅ REMOVED: if (!hasPermission) ...
+
+    // Just launch the library directly. 
+    // It opens the system picker which is safe and Google-compliant.
     launchImageLibrary({ mediaType: 'photo', quality: 0.5 }, response => {
       if (response.assets?.[0]) {
         setForm(prev => ({ ...prev, profilePic: response.assets[0] }));
         setShowImageModal(false);
+      } else if (response.errorCode) {
+         console.log('Image picker error:', response.errorMessage);
       }
     });
-  }, [showToast]);
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!form.name) {
@@ -290,7 +291,7 @@ const EditProfileScreen = ({ navigation }) => {
     // ✅ FIX: safeAreaTop={false} + avoidKeyboard={true}
     <ScreenWrapper 
       backgroundColor="#ffffff" 
-      barStyle="light-content" 
+      barStyle="dark-content" 
       safeAreaTop={false}
       avoidKeyboard={true}
     >

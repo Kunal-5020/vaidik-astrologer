@@ -8,21 +8,16 @@ import {
   Platform,
   Image,
   Alert,
-  KeyboardAvoidingView,
   ActivityIndicator,
   Vibration,
-  Linking,
   Dimensions,
+  PermissionsAndroid,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useRegistration } from '../../contexts';
 import ProfileImageModal from '../../component/ProfileImageModal';
-import {
-  requestAllMediaPermissions,
-  checkMediaPermissions,
-} from '../../utils/permissions';
 import { uploadService } from '../../services/api/upload.service';
 import { styles } from '../../style/RegistrationFormStyle'; 
 import ScreenWrapper from '../../component/ScreenWrapper';
@@ -97,32 +92,40 @@ export default function RegistrationFormScreen({ navigation, route }) {
   const handleImagePick = async (type) => {
     setShowImageModal(false);
     const options = { mediaType: 'photo', quality: 0.7, selectionLimit: 1 };
-    
+
     const callback = (res) => {
       if (res.assets?.[0]?.uri) {
         updateField('profilePicture', res.assets[0].uri);
       } else if (res.errorCode) {
-        Alert.alert('Error', res.errorMessage);
+        // Only show alert for real errors, not cancellation
+        if (res.errorCode !== 'camera_unavailable') {
+             Alert.alert('Error', res.errorMessage);
+        }
       }
     };
 
-    if (type === 'camera') launchCamera(options, callback);
-    else launchImageLibrary(options, callback);
+    if (type === 'camera') {
+      // ✅ 1. Only request permission for Camera
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert('Permission Denied', 'Camera access is required to take a photo.');
+          return;
+        }
+      }
+      // Note: For iOS, react-native-image-picker handles camera permission automatically, 
+      // or you can keep your existing iOS check logic here if you prefer.
+      
+      launchCamera(options, callback);
+    } else {
+      // ✅ 2. For Gallery, NO permission request needed on Android 13+
+      // The library handles the system picker automatically.
+      launchImageLibrary(options, callback);
+    }
   };
 
-  const checkPermissionsAndShowModal = async () => {
-    if (Platform.OS === 'android') {
-        setShowImageModal(true);
-        return;
-    }
-    const status = await checkMediaPermissions();
-    if (status.allGranted) {
-      setShowImageModal(true);
-    } else {
-      const request = await requestAllMediaPermissions();
-      if (request.camera || request.gallery) setShowImageModal(true);
-      else Alert.alert('Permission Required', 'Please enable permissions in settings.');
-    }
+  const checkPermissionsAndShowModal = () => {
+    setShowImageModal(true);
   };
 
   // ===== VALIDATION =====

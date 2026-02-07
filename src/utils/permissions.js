@@ -61,9 +61,10 @@ export const requestCameraPermission = async () => {
  */
 export const requestGalleryPermission = async () => {
   if (Platform.OS === 'android') {
-    const permission = Platform.Version >= 33
-      ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-      : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+    // ✅ NEW LOGIC: Android 13+ (SDK 33) does NOT need permission for picking photos
+    if (Platform.Version >= 33) {
+      return true; 
+    }
 
     try {
       const granted = await PermissionsAndroid.request(permission, {
@@ -74,16 +75,7 @@ export const requestGalleryPermission = async () => {
         buttonPositive: 'OK',
       });
 
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('✅ Gallery permission granted');
-        return true;
-      } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-        console.log('⚠️ Gallery permission permanently denied');
-        return false;
-      } else {
-        console.log('❌ Gallery permission denied');
-        return false;
-      }
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
       console.warn('Gallery permission error:', err);
       return false;
@@ -132,33 +124,16 @@ export const requestAllMediaPermissions = async () => {
     console.log('📸 Requesting Camera and Gallery permissions...');
 
     if (Platform.OS === 'android') {
-      const permissionsToRequest = [PermissionsAndroid.PERMISSIONS.CAMERA];
-      
-      // Android 13+ (API 33) uses granular media permissions
-      const galleryPermission = Platform.Version >= 33 
-        ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES 
-        : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
-
-      permissionsToRequest.push(galleryPermission);
-
-      const granted = await PermissionsAndroid.requestMultiple(permissionsToRequest);
-
-      const cameraGranted = granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
-      const galleryGranted = granted[galleryPermission] === PermissionsAndroid.RESULTS.GRANTED;
-
-      console.log('📋 Camera:', cameraGranted ? 'Granted' : 'Denied');
-      console.log('📋 Gallery:', galleryGranted ? 'Granted' : 'Denied');
-
-      // If either is denied, show alert helper
-      if (!cameraGranted && !galleryGranted) {
-          // Optional: You can rely on the UI to show the alert, or show it here.
-          // Usually better to let the UI handle the "Open Settings" flow if check fails.
-      }
+      // ✅ Only ask for Camera. 
+      // We do NOT ask for Gallery (READ_MEDIA_IMAGES) on Android 13+ anymore.
+      const cameraGranted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA
+      );
 
       return {
-        camera: cameraGranted,
-        gallery: galleryGranted,
-        allGranted: cameraGranted && galleryGranted,
+        camera: cameraGranted === PermissionsAndroid.RESULTS.GRANTED,
+        gallery: true, // ✅ Always treat gallery as "granted" because we don't need permission
+        allGranted: cameraGranted === PermissionsAndroid.RESULTS.GRANTED,
       };
     } else {
       // iOS

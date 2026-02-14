@@ -30,8 +30,6 @@
 	<string>We need microphone access for calls.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access for video calls.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need location to connect you with nearby users.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
